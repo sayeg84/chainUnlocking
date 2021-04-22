@@ -9,7 +9,7 @@ function saveChain(name::AbstractString,P::AbstractChain)
     end
 end
 
-function saveTrajectory(name,Q::PolygonalChain2,angles_values,angles_indexes)
+function saveTrajectory(name,Q::PolygonalChain2,angles,diheds)
     ns = length(Q)+1
     nzeros = Int(ceil(log10(ns+1)))
     # padding the number with zeros to the right in order to have no problems if sorting
@@ -26,9 +26,9 @@ function saveTrajectory(name,Q::PolygonalChain2,angles_values,angles_indexes)
         coordinates = join(coordinates,",")
         coordinates = string(coordinates,"\n")
         write(io,coordinates)
-        for i in 1:length(angles_values)
-            if angles_indexes[i]!= 0 
-                dihedralRotate!(newQ,angles_indexes[i],angles_values[i])
+        for i in 1:length(angles)
+            if diheds[i]!= 0 
+                dihedralRotate!(newQ,diheds[i],angles[i])
                 arr = toArray(newQ)
                 coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
                 coordinates = join(coordinates,",")
@@ -39,14 +39,22 @@ function saveTrajectory(name,Q::PolygonalChain2,angles_values,angles_indexes)
     end
 end
 
-function saveSimulation(name,P,Q,angles_values,angles_indexes)
+function saveSimulation(name,P,Q,angles,diheds;saveTrajec=true)
     saveChain(string(name,"_P.csv"),P)
     saveChain(string(name,"_Q.csv"),Q)
-    saveTrajectory(string(name,"_trajectory.csv"),Q,angles_values,angles_indexes)
+    if saveTrajec
+        saveTrajectory(string(name,"_trajectory.csv"),Q,angles,diheds)
+    end
     open(string(name,"_angles-indexes.csv"),"w+") do io
-        DelimitedFiles.writedlm(io,angles_indexes,',')
+        DelimitedFiles.writedlm(io,diheds,',')
     end
     open(string(name,"_angles-values.csv"),"w+") do io
-        DelimitedFiles.writedlm(io,angles_values,',')
+        DelimitedFiles.writedlm(io,angles,',')
+    end
+end
+
+function saveLtable(name::AbstractString,lvals::AbstractArray)
+    open(string(name,"_lvals.csv"),"w+") do io
+        DelimitedFiles.writedlm(io,lvals,',')
     end
 end

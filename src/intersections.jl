@@ -314,7 +314,7 @@ It returns a tuple `a,p` where `a` is a Bool saying if there is intersection and
 function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Tuple{Bool,Point}
     # checking the intersection is within the segment
     if 0 <= t <= 1
-        println("la raíz esta bien")
+        #println("la raíz esta bien")
         # a,b is the interval of z values for the q1-q2 segment
         a,b = minmax(q1.z,q2.z)
         inp = p1 + t*vp
@@ -344,10 +344,11 @@ function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         q2prime = mat*q2
         val = segmentOverlap(p1,p2,q1prime,q2prime)
         return val,e0,e0
-    elseif roots[2] == 1
+    elseif roots[1] == 1
         int = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta)
         return int[1],int[2],e0
-    elseif roots[3] == 2 
+    elseif roots[1] == 2
+        #println("aca")
         int1 = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta)
         int2 = case1CheckRoot(roots[3],p1,p2,vp,q1,q2,vq,theta)
         return int1[1] || int2[1], int1[2],int2[2]
@@ -561,10 +562,13 @@ end
 function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta;debug=false)
     # segments already intersect
     # this should never happen in practice but we add it for debugging reasons
+    #println("dentro caso 3")
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
-        println("WARNING: segments intersect before rotating")
+        #println("WARNING: segments intersect before rotating")
         return true
-    else
+    # only test for intersection if points are in the same interval        
+    elseif isapprox(p1.z,q1.z,atol=1e-15)
+        println("primera pasada")
         for q in (q1,q2)
             r = norm(q)
             roots = segmentCircleIntersection(p1,p2,vp,r)
@@ -573,6 +577,7 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
                 return true
             end
         end
+        println("segunda pasada")
         for p in (p1,p2)
             r = norm(p)
             roots = segmentCircleIntersection(q1,q2,vq,r)
@@ -581,7 +586,8 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
                 return true
             end
         end
-
+        return false
+    else
         return false
     end
 end
@@ -756,6 +762,8 @@ function equalSegmentIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Po
         return (b >= c) && (d >= a)
     end
 end
+
+# using IntervalRootFinding
 
 """
 case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Bool
@@ -963,11 +971,14 @@ function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,thet
     B = isapprox(vq.z,0,atol=1e-15)
     # case 1: the segments are not contained in an `xy` plane
     if !B
+        #println("caso 1")
         return case1Intersection(p1,p2,vp,q1,q2,vq,theta)
     # case 2: the segment
     elseif !A && B
+        #println("caso 2")
         return case2Intersection(p1,p2,vp,q1,q2,vq,theta)
     elseif A && B
+        #println("caso 3")
         return case3Intersection(p1,p2,vp,q1,q2,vq,theta)
     end
 end
@@ -989,13 +1000,23 @@ function planeRotationXY(u::Point)::Matrix
 end
 
 
-function checkIntersection(P::Array{Point,1},Q::Array{Point,1},theta::Real)::Bool
+function checkIntersection(P::AbstractChain,k::Integer,theta::Real)::Bool
     n = length(P)
-    m = length(Q)
     flag = false
-    for i in 1:(n-1)
-        for j in 1:(m-1)
-            flag = flag || surfaceSegmentIntersection(P[i],P[i+1],Q[j],Q[j+1],theta)[1]
+    # index of segments that will rotate
+    for i in k+2:n
+        # indexes of static semgments
+        suplim = i==k+2 ? k : k+1
+        for j in 1:suplim
+            val = surfaceSegmentIntersection(P.endpoints[j],P.endpoints[j+1],P.endpoints[i],P.endpoints[i+1],theta)[1]
+            #if val
+            #    println(k)
+            #    println(i)
+            #    println(j)
+            #    println(theta)
+            #    println()
+            #end
+            flag = flag || val
         end
     end
     return flag

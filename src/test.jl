@@ -365,13 +365,14 @@ function testParallelCheck(n)
 end
 
 
-using BenchmarkTools, IntervalArithmetic, IntervalRootFinding
+
 
 
 
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
+    using BenchmarkTools, IntervalArithmetic, IntervalRootFinding
     println()
     println("entramos")
     println()  

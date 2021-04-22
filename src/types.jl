@@ -337,7 +337,7 @@ function PolygonalChain(A::Array{Point,1})
     return PolygonalChain(Tuple(A))
 end
 
-function PolygonalChain(n::Int)
+function PolygonalChain(n::Integer)
     A = [Point() for i in 1:n]
     return PolygonalChain(Tuple(A))
 end
@@ -346,7 +346,7 @@ struct PolygonalChain2 <: AbstractChain
     endpoints::Array{Point,1}
 end
 
-function PolygonalChain2(n::Int)
+function PolygonalChain2(n::Integer)
     A = [Point() for i in 1:n]
     return PolygonalChain2(A)
 end
@@ -395,16 +395,35 @@ function centerChain!(P::PolygonalChain2)
     end
 end
 
+using GenericLinearAlgebra
+
 """
 optimalRotation(P::AbstractChain,Q::AbstractChain)::Matrix
 
 Taking as an input two centered (i.e. with centroid 0) AbstractChains P,Q, it uses the [Kabsch algorithm](https://en.wikipedia.org/wiki/Kabsch_algorithm) to find the optimal rotation to overlap P into q
 """
+
 function optimalRotation(P::AbstractChain,Q::AbstractChain)::Matrix
     A = toArray(P)
     B = toArray(Q)
     H = transpose(A)*B
-    S = LinearAlgebra.svd(H)
+    #println("Aca")
+    #=
+    if T == BigFloat
+        display(A)
+        println()
+        display(B)
+        println()
+        println("Big")
+        display(H)
+        println()
+        S = GenericLinearAlgebra.svd(H,full=false)    
+        println("No salgo")
+    else
+        S = LinearAlgebra.svd(H)    
+    end
+    =#
+    S = LinearAlgebra.svd(Float64.(H))
     d = sign(LinearAlgebra.det(transpose(S.U*S.Vt)))
     mat = transpose(S.Vt)*[1.0 0.0 0.0 ; 0.0 1.0 0.0 ; 0.0 0.0 d ]*transpose(S.U)
     return Matrix(mat)
@@ -547,7 +566,7 @@ function PolygonalChainRosetta(linkLengths::Array{<:Real,1},linkAngles::Array{<:
 end
 
 
-function dihedralRotate(P::PolygonalChain,i::Int,theta::T)::PolygonalChain
+function dihedralRotate(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
     n = length(P)
     if 1 <= i < n-1
         rotN = unitVector(P.endpoints[i+1]-P.endpoints[i])
@@ -562,7 +581,7 @@ function dihedralRotate(P::PolygonalChain,i::Int,theta::T)::PolygonalChain
     end
 end
 
-function dihedralRotate(P::PolygonalChain2,i::Int,theta::T)::PolygonalChain2
+function dihedralRotate(P::PolygonalChain2,i::Integer,theta::Real)::PolygonalChain2
     n = length(P)
     if 1 <= i < n-1
         rotN = unitVector(P.endpoints[i+2]-P.endpoints[i+1])
@@ -579,7 +598,7 @@ function dihedralRotate(P::PolygonalChain2,i::Int,theta::T)::PolygonalChain2
 end
 
 
-function dihedralRotate!(P::PolygonalChain2,i::Integer,theta::T)
+function dihedralRotate!(P::PolygonalChain2,i::Integer,theta::Real)
     n = length(P)
     if 1 <= i < n-1
         rotN = unitVector(P.endpoints[i+2]-P.endpoints[i+1])

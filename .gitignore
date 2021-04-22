@@ -1,1 +1,5 @@
-extra/.ipynb_checkpoints/*
+extra/.
+ipynb_checkpoints/*
+outputs/*
+*.png
+*.zip
