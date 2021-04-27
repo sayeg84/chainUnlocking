@@ -7,11 +7,11 @@ function moveBeforeDihedral(P::PolygonalChain2,i::Integer)
     newP = copy(P)
     n = length(P)
     if 1 <= i <= n-2
-        u = unitVector(newP.endpoints[i+2]-newP.endpoints[i+1])
+        u = unitVector(newP[i+2]-newP[i+1])
         mat = planeRotationXY(u)
-        pivot = newP.endpoints[i+2]
+        pivot = newP[i+2]
         for j in 1:n+1
-            newP.endpoints[j] = mat*(newP.endpoints[j]-pivot)
+            newP[j] = mat*(newP[j]-pivot)
         end
         return newP
     else
@@ -25,7 +25,7 @@ function tryDihedralRotation!(P::PolygonalChain2,i::Integer,theta::Real)
     Q = moveBeforeDihedral(P,i)
     if 1 <= i < n-1
         # TODO change to cells and make brute force
-        b = checkIntersection(Q.endpoints[1:i],Q.endpoints[i+1:end],theta)
+        b = checkIntersection(Q[1:i],Q[i+1:end],theta)
         if b
             dihedralRotate!(Q,i,theta)
             return Q
@@ -39,18 +39,18 @@ function tryDihedralRotation!(P::PolygonalChain2,i::Integer,theta::Real)
 end
 
 function stair(n::Integer)::PolygonalChain2
-    #endpoints = Array{Point,1}(undef,n+1)
-    endpoints = [e0 for i in 1:n+1]
-    endpoints[1] = e0
-    endpoints[2] = ex
+    #vertices = Array{Point,1}(undef,n+1)
+    vertices = [e0 for i in 1:n+1]
+    vertices[1] = e0
+    vertices[2] = ex
     for i in 3:(n+1)
         if mod(i,2) == 1
-            endpoints[i] += endpoints[i-1]+ ey
+            vertices[i] += vertices[i-1]+ ey
         else
-            endpoints[i] += endpoints[i-1]+ ex
+            vertices[i] += vertices[i-1]+ ex
         end
     end
-    return PolygonalChain2(endpoints)
+    return PolygonalChain2(vertices)
 end
 
 function knittingneedle(l::Real=2.0;ep::Real=1/6)
@@ -126,7 +126,7 @@ function lsimulation(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;sav
                 n1 = lpad(i,n1zeros,'0')
                 n2zeros = Int(ceil(log10(iter+1)))
                 n2 = lpad(j,n2zeros,"0")
-                saveSimulation(string(savename,n1,"_",n2,),P,Q,angles,diheds,saveTrajec=false)
+                saveSimulation(string(savename,n1,"_",n2,),P,Q,lastQ,angles,diheds,saveTrajec=false)
             end
             temp_rmsds[j] = overlapedRmsd(P,lastQ)
         end

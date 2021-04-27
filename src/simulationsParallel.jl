@@ -33,7 +33,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
                 n1 = lpad(i,n1zeros,'0')
                 n2zeros = Int(ceil(log10(iter+1)))
                 n2 = lpad(j,n2zeros,"0")
-                saveSimulation(string(savename,n1,"_",n2,),P,Q,angles,diheds,saveTrajec=false)
+                saveSimulation(string(savename,n1,"_",n2,),P,Q,lastQ,angles,diheds,saveTrajec=false)
             end
             temp_rmsds[j] = overlapedRmsd(P,lastQ)
         end

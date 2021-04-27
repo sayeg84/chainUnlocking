@@ -183,7 +183,7 @@ In this case, we must find the intersection of the segment p in the plane parale
 
 * Case 3: Segment q and segment p are in a plane parallel to the XY plane. 
 
-In this case, the intersection only ocurrs if the plane is the same for both segments. If it is the same, we must test for the intersections by checking if the circles decribed by the rotations of endpoints q1,q2 intersect the p1,p2 segment in apropriate regions
+In this case, the intersection only ocurrs if the plane is the same for both segments. If it is the same, we must test for the intersections by checking if the circles decribed by the rotations of vertices q1,q2 intersect the p1,p2 segment in apropriate regions
 =#
 
 ### Case 1 functions
@@ -1008,7 +1008,7 @@ function checkIntersection(P::AbstractChain,k::Integer,theta::Real)::Bool
         # indexes of static semgments
         suplim = i==k+2 ? k : k+1
         for j in 1:suplim
-            val = surfaceSegmentIntersection(P.endpoints[j],P.endpoints[j+1],P.endpoints[i],P.endpoints[i+1],theta)[1]
+            val = surfaceSegmentIntersection(P[j],P[j+1],P[i],P[i+1],theta)[1]
             #if val
             #    println(k)
             #    println(i)

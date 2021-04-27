@@ -39,9 +39,10 @@ function saveTrajectory(name,Q::PolygonalChain2,angles,diheds)
     end
 end
 
-function saveSimulation(name,P,Q,angles,diheds;saveTrajec=true)
+function saveSimulation(name,P,Q,lastQ,angles,diheds;saveTrajec=true)
     saveChain(string(name,"_P.csv"),P)
     saveChain(string(name,"_Q.csv"),Q)
+    saveChain(string(name,"_lastQ.csv"),lastQ)
     if saveTrajec
         saveTrajectory(string(name,"_trajectory.csv"),Q,angles,diheds)
     end

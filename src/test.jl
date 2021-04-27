@@ -139,7 +139,7 @@ function testConversion()
         println((lengths,angles,dihed))
         println(arr)
         println()
-        println(P.endpoints)    
+        println(P.vertices)    
         println(Q)
         return false
     end

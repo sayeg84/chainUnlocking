@@ -330,7 +330,7 @@ end
 abstract type AbstractChain end
 
 struct PolygonalChain{N} <: AbstractChain
-    endpoints::NTuple{N,Point}
+    vertices::NTuple{N,Point}
 end
 
 function PolygonalChain(A::Array{Point,1})
@@ -343,7 +343,7 @@ function PolygonalChain(n::Integer)
 end
 
 struct PolygonalChain2 <: AbstractChain
-    endpoints::Array{Point,1}
+    vertices::Array{Point,1}
 end
 
 function PolygonalChain2(n::Integer)
@@ -351,38 +351,46 @@ function PolygonalChain2(n::Integer)
     return PolygonalChain2(A)
 end
 
-import Base.length, Base.copy
+import Base.length, Base.copy, Base.getindex, Base.setindex!
 
-function length(P::AbstractChain)::Int64
-    return length(P.endpoints)-1
+function Base.length(P::AbstractChain)::Int64
+    return length(P.vertices)-1
 end
 
-function copy(P::AbstractChain)
-    return typeof(P)(copy(P.endpoints))
+function Base.copy(P::AbstractChain)
+    return typeof(P)(copy(P.vertices))
+end
+
+function Base.getindex(P::AbstractChain,idx::Integer)
+    return P.vertices[idx]
+end
+
+function Base.setindex!(P::AbstractChain,p::AbstractPoint,idx::Integer)
+    P.vertices[idx] = p
 end
 
 function toArray(P::AbstractChain)::Array{T,2}
-    return vcat([[p.x p.y p.z] for p in P.endpoints]...)
+    return vcat([[p.x p.y p.z] for p in P.vertices]...)
 end
 
 function centroid(P::AbstractChain)::Point
     n = length(P)
     c = e0
     for i in 1:n+1
-        c += P.endpoints[i]
+        c += P[i]
     end
     return 1/(n+1)*c
 end
 
 function centerChain(P::PolygonalChain)::PolygonalChain
     c = centroid(P)
-    arr = [p-c for p in P.endpoints]
+    arr = [p-c for p in P.vertices]
     return PolygonalChain(arr)
 end
 
 function centerChain(P::PolygonalChain2)::PolygonalChain2
     c = centroid(P)
-    arr = [p-c for p in P.endpoints]
+    arr = [p-c for p in P.vertices]
     return PolygonalChain2(arr)
 end
 
@@ -391,7 +399,7 @@ function centerChain!(P::PolygonalChain2)
     c = centroid(P)
     n = length(P)
     for i in 1:(n+1)
-        P.endpoints[i] -= c
+        P[i] -= c
     end
 end
 
@@ -441,7 +449,7 @@ function simpleRmsd(P::AbstractChain,Q::AbstractChain)::T
     end
     dist = 0
     for i in 1:n+1
-        dist += sqr(distance(P.endpoints[i],Q.endpoints[i]))
+        dist += sqr(distance(P[i],Q[i]))
     end
     return sqrt(dist/(n+1))
 end
@@ -455,7 +463,7 @@ function overlapedRmsd(P::AbstractChain,Q::AbstractChain)::T
     P = centerChain(P)
     Q = centerChain(Q)
     mat = optimalRotation(P,Q)
-    arr = [mat*p for p in P.endpoints]
+    arr = [mat*p for p in P.vertices]
     S = typeof(P)(arr)
     n = length(S)
     if n != length(Q)
@@ -463,7 +471,7 @@ function overlapedRmsd(P::AbstractChain,Q::AbstractChain)::T
     end
     dist = 0
     for i in 1:n+1
-        dist += sqr(distance(S.endpoints[i],Q.endpoints[i]))
+        dist += sqr(distance(S[i],Q[i]))
     end
     return sqrt(dist/(n+1))
 end
@@ -475,7 +483,7 @@ function linkLengths(P::AbstractChain)::Array{T,1}
     n = length(P)
     lengths = zeros(T,n)
     for i in 1:n
-        lengths[i] = distance(P.endpoints[i],P.endpoints[i+1])
+        lengths[i] = distance(P[i],P[i+1])
     end
     return lengths
 end
@@ -484,7 +492,7 @@ function linkAngles(P::AbstractChain)::Array{T,1}
     n = length(P)
     angles = zeros(T,n-1)
     for i in 1:n-1
-        angles[i] = bangle(P.endpoints[i],P.endpoints[i+1],P.endpoints[i+2])
+        angles[i] = bangle(P[i],P[i+1],P[i+2])
     end
     return angles
 end
@@ -493,7 +501,7 @@ function dihedralAngles(P::AbstractChain)::Array{T,1}
     n = length(P)
     dihedrals = zeros(T,n-2)
     for i in 1:n-2
-        dihedrals[i] = dihedral(P.endpoints[i],P.endpoints[i+1],P.endpoints[i+2],P.endpoints[i+3])
+        dihedrals[i] = dihedral(P[i],P[i+1],P[i+2],P[i+3])
     end
     return dihedrals
 end
@@ -503,13 +511,13 @@ function lengthsAndAngles(P::AbstractChain)::Tuple{Array{T,1},Array{T,1},Array{T
     lengths = zeros(T,n)
     angles = zeros(T,n-1)
     dihedrals = zeros(T,n-2)
-    lengths[1] = distance(P.endpoints[1],P.endpoints[2])
-    lengths[2] = distance(P.endpoints[2],P.endpoints[3])
-    angles[1] = bangle(P.endpoints[1],P.endpoints[2],P.endpoints[3])
+    lengths[1] = distance(P[1],P[2])
+    lengths[2] = distance(P[2],P[3])
+    angles[1] = bangle(P[1],P[2],P[3])
     for i in 3:n
-        lengths[i] = distance(P.endpoints[i],P.endpoints[i+1])
-        angles[i-1] = bangle(P.endpoints[i-1],P.endpoints[i],P.endpoints[i+1])
-        dihedrals[i-2] = dihedral(P.endpoints[i-2],P.endpoints[i-1],P.endpoints[i],P.endpoints[i+1])
+        lengths[i] = distance(P[i],P[i+1])
+        angles[i-1] = bangle(P[i-1],P[i],P[i+1])
+        dihedrals[i-2] = dihedral(P[i-2],P[i-1],P[i],P[i+1])
     end
     return (lengths,angles,dihedrals)
 end
@@ -517,23 +525,23 @@ end
 function PolygonalChain(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalChain
     n = length(linkLengths)
     if n == (length(linkAngles)+1) && n == (length(dihedralAngles)+2)
-        endpoints = Array{Point,1}(undef,n+1)
+        vertices = Array{Point,1}(undef,n+1)
         # origin as arbitrary starting point
-        endpoints[1] = e0
-        endpoints[2] = Point(linkLengths[1],0.0,0.0)
-        endpoints[3] = endpoints[2] + Point(-linkLengths[2]*cos(linkAngles[1]),linkLengths[2]*sin(linkAngles[1]),0.0)
+        vertices[1] = e0
+        vertices[2] = Point(linkLengths[1],0.0,0.0)
+        vertices[3] = vertices[2] + Point(-linkLengths[2]*cos(linkAngles[1]),linkLengths[2]*sin(linkAngles[1]),0.0)
         for i in 3:n
-            #ab = endpoints[i-1]-endpoints[i-2]
-            bc = endpoints[i]-endpoints[i-1]
+            #ab = vertices[i-1]-vertices[i-2]
+            bc = vertices[i]-vertices[i-1]
             #bcnorm = unitVector(bc)
             bcnorm = bc/linkLengths[i-1]
             d0 = linkLengths[i]*bcnorm
-            n = unitVector(cross(endpoints[i-1]-endpoints[i-2],bcnorm))
+            n = unitVector(cross(vertices[i-1]-vertices[i-2],bcnorm))
             d0 = rotate(d0,pi-linkAngles[i-1],n)
             d0 = rotate(d0,dihedralAngles[i-2],bcnorm)
-            endpoints[i+1] = endpoints[i] + d0
+            vertices[i+1] = vertices[i] + d0
         end
-        return PolygonalChain(endpoints)
+        return PolygonalChain(vertices)
     else
         error("Arrays size $n , $(length(linkAngles)+1) and $(length(linkAngles)+2) do not match")
     end
@@ -542,24 +550,24 @@ end
 function PolygonalChainRosetta(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalChain
     n = length(linkLengths)
     if n == (length(linkAngles)+1) && n == (length(dihedralAngles)+2)
-        endpoints = Array{Point,1}(undef,n+1)
+        vertices = Array{Point,1}(undef,n+1)
         # origin as arbitrary starting point
-        endpoints[1] = e0
-        endpoints[2] = Point(linkLengths[1],0.0,0.0)
-        endpoints[3] = endpoints[2] + Point(-linkLengths[2]*cos(linkAngles[1]),linkLengths[2]*sin(linkAngles[1]),0.0)
+        vertices[1] = e0
+        vertices[2] = Point(linkLengths[1],0.0,0.0)
+        vertices[3] = vertices[2] + Point(-linkLengths[2]*cos(linkAngles[1]),linkLengths[2]*sin(linkAngles[1]),0.0)
         for i in 3:n
             a = sin(pi-linkAngles[i-1])
             d0 = linkLengths[i]*Point(cos(pi-linkAngles[i-1]),cos(dihedralAngles[i-2])*a,sin(dihedralAngles[i-2])*a)
-            bcnorm  = (endpoints[i]-endpoints[i-1])/linkLengths[i-1]
-            n = unitVector(cross(endpoints[i-1]-endpoints[i-2],bcnorm))
+            bcnorm  = (vertices[i]-vertices[i-1])/linkLengths[i-1]
+            n = unitVector(cross(vertices[i-1]-vertices[i-2],bcnorm))
             M = matrixFromCols(bcnorm,cross(n,bcnorm),n)
             #println(M*d0)
-            endpoints[i+1] = endpoints[i] + M*d0
-            #display(endpoints)
+            vertices[i+1] = vertices[i] + M*d0
+            #display(vertices)
             #println()
         end
-        PolygonalChain(endpoints)
-        return PolygonalChain(endpoints)
+        PolygonalChain(vertices)
+        return PolygonalChain(vertices)
     else
         error("Arrays size $n , $(length(linkAngles)+1) and $(length(linkAngles)+2) do not match")
     end
@@ -569,11 +577,11 @@ end
 function dihedralRotate(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
     n = length(P)
     if 1 <= i < n-1
-        rotN = unitVector(P.endpoints[i+1]-P.endpoints[i])
+        rotN = unitVector(P[i+1]-P[i])
         rotMat = rotation(theta,rotN)
-        points = [p for p in P.endpoints]
+        points = [p for p in P.vertices]
         for j in i+2:n+1
-            points[j] = rotMat*(points[j]-P.endpoints[i+1]) + P.endpoints[i+1]
+            points[j] = rotMat*(points[j]-P[i+1]) + P[i+1]
         end
         return PolygonalChain(points)
     else
@@ -584,10 +592,10 @@ end
 function dihedralRotate(P::PolygonalChain2,i::Integer,theta::Real)::PolygonalChain2
     n = length(P)
     if 1 <= i < n-1
-        rotN = unitVector(P.endpoints[i+2]-P.endpoints[i+1])
+        rotN = unitVector(P[i+2]-P[i+1])
         rotMat = rotation(theta,rotN)
-        points = [p for p in P.endpoints]
-        pivot = copy(P.endpoints[i+2])
+        points = [p for p in P.vertices]
+        pivot = copy(P[i+2])
         for j in i+3:n+1
             points[j] = rotMat*(points[j]-pivot) + pivot
         end
@@ -601,10 +609,10 @@ end
 function dihedralRotate!(P::PolygonalChain2,i::Integer,theta::Real)
     n = length(P)
     if 1 <= i < n-1
-        rotN = unitVector(P.endpoints[i+2]-P.endpoints[i+1])
+        rotN = unitVector(P[i+2]-P[i+1])
         rotMat = rotation(theta,rotN)
         for j in i+3:n+1
-            P.endpoints[j] = rotMat*(P.endpoints[j]-P.endpoints[i+1]) + P.endpoints[i+1]
+            P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
         end
     else
         error("$i must be lower than $n")
@@ -643,7 +651,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     display(@benchmark dihedralRotate!(Q,10,pi/2))
     println()
     P = PolygonalChain(m)
-    Q = PolygonalChain2([p for p in P.endpoints])
+    Q = PolygonalChain2([p for p in P.vertices])
     println(simpleRmsd(P,Q))
     P = dihedralRotate(P,10,pi/2)
     dihedralRotate!(Q,10,pi/2)
@@ -655,5 +663,5 @@ if abspath(PROGRAM_FILE) == @__FILE__
     e = Point(0.0,1.0,1.0)
     P = PolygonalChain2([a,b,c,d,e])
     dihedralRotate!(P,2,-pi/4)
-    println(P.endpoints)
+    println(P.vertices)
 end
