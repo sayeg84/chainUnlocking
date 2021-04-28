@@ -351,6 +351,15 @@ function PolygonalChain2(n::Integer)
     return PolygonalChain2(A)
 end
 
+function PolygonalChain2(arr::Array{<:Real,2})
+    if size(arr)[2] == 3
+        A = [Point(arr[i,1],arr[i,2],arr[i,3]) for i in 1:(size(arr)[1])]
+        return PolygonalChain2(A)
+    else
+        error("Array dimensions must be (n,3)")
+    end
+end
+
 import Base.length, Base.copy, Base.getindex, Base.setindex!
 
 function Base.length(P::AbstractChain)::Int64
@@ -664,4 +673,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
     P = PolygonalChain2([a,b,c,d,e])
     dihedralRotate!(P,2,-pi/4)
     println(P.vertices)
+    a = rand(6,3)
+    b = PolygonalChain2(a)
 end

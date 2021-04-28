@@ -43,7 +43,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
     return ls,rmsds_mean,rmsds_error
 end
 if abspath(PROGRAM_FILE) == @__FILE__
-    using Plots
+    #using Plots
     const lvals,rmsds_mean,rmsds_error = lsimulationPar(LinRange(1.35,1.45,parse(Int16,ARGS[4])),parse(Int16,ARGS[3]);savename=ARGS[1])
     println("Progress: 100 % ")
     saveLtable(joinpath(ARGS[1]),lvals)

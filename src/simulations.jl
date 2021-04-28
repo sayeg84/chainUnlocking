@@ -137,13 +137,13 @@ function lsimulation(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;sav
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using Plots
+    #using Plots
     const savename = "../extra/prueba/"
     const ls = LinRange(1.35,1.45,21)
     if !isempty(savename)
         saveLtable(string(savename,"l"),ls)
     end
     const ls,rmsds_mean,rmsds_error = lsimulation(ls,5,savename=savename)
-    scatter(ls,rmsds_mean,yerror=rmsds_error,ylabel="RMSD sobrepuesto",xlabel="l",label=false)
-    savefig("../extra/prueba/lsimul.png")
+    #scatter(ls,rmsds_mean,yerror=rmsds_error,ylabel="RMSD sobrepuesto",xlabel="l",label=false)
+    #savefig("../extra/prueba/lsimul.png")
 end
