@@ -6,6 +6,7 @@ function main()
     println("saving results")
     open(string(ARGS[1],"results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,rmsds_mean,rmsds_error)
+        write(io,"l,t_mean,t_std,rmsd_mean,rmsd_std\n")
         DelimitedFiles.writedlm(io,table,',')
     end
     println("Making Plots")
