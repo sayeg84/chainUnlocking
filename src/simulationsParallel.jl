@@ -57,7 +57,7 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     using Plots
-    const lvals,ts_mean,ts_error,rmsds_mean,rmsds_error = lsimulationPar(LinRange(1.39,1.42,parse(Int16,ARGS[4])),parse(Int16,ARGS[3]);savename=ARGS[1])
+    const lvals,ts_mean,ts_error,rmsds_mean,rmsds_error = lsimulationPar(LinRange(1.4,1.41,parse(Int16,ARGS[4])),parse(Int16,ARGS[3]);savename=ARGS[1])
     open(string(ARGS[1],"results.csv"),"w+") do io
         table = hcat(lvals,ts_mean,ts_error,rmsds_mean,rmsds_error)
         DelimitedFiles.writedlm(io,table,',')
