@@ -3,7 +3,7 @@ include("io.jl")
 
 using Statistics
 
-function moveBeforeDihedral(P::PolygonalChain2,i::Integer)
+function moveBeforeDihedral(P::PolygonalNew,i::Integer)
     newP = copy(P)
     n = length(P)
     if 1 <= i <= n-2
@@ -20,7 +20,7 @@ function moveBeforeDihedral(P::PolygonalChain2,i::Integer)
 end
 
 
-function tryDihedralRotation!(P::PolygonalChain2,i::Integer,theta::Real)
+function tryDihedralRotation!(P::PolygonalNew,i::Integer,theta::Real)
     n = length(P)
     Q = moveBeforeDihedral(P,i)
     if 1 <= i < n-1
@@ -38,7 +38,7 @@ function tryDihedralRotation!(P::PolygonalChain2,i::Integer,theta::Real)
     end
 end
 
-function stair(n::Integer)::PolygonalChain2
+function stair(n::Integer)::PolygonalNew
     #vertices = Array{Point,1}(undef,n+1)
     vertices = [e0 for i in 1:n+1]
     vertices[1] = e0
@@ -50,7 +50,7 @@ function stair(n::Integer)::PolygonalChain2
             vertices[i] += vertices[i-1]+ ex
         end
     end
-    return PolygonalChain2(vertices)
+    return PolygonalNew(vertices)
 end
 
 function knittingneedle(l::Real=2.0;ep::Real=1/6)
@@ -63,11 +63,16 @@ function knittingneedle(l::Real=2.0;ep::Real=1/6)
     p0 = p1 + l*unitVector(p0-p1)
     p5 = p4 + l*unitVector(p5-p4)
     points = [p0,p1,p2,p3,p4,p5]
-    return PolygonalChain2(points)
+    return PolygonalNew(points)
 end
 
+function flatten(P::AbstractChain)
+    lengths, angles, dihedrals = lengthsAndAngles(P)
+    newDiheds = [pi for i in dihedrals]
+    return PolygonalNew(lengths,angles,newDiheds)
+end
 
-function randomSearch(P::PolygonalChain2,Q::PolygonalChain2,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;max_iter::Integer=1000,log::Bool=false)
+function randomSearch(P::PolygonalNew,Q::PolygonalNew,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;max_iter::Integer=1000,log::Bool=false)
     np = length(P)
     nq = length(Q)
     diheds = zeros(Int8,max_iter)

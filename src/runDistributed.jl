@@ -55,10 +55,10 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         temp_rmsds = zeros(iter)
         temp_ts = zeros(iter)
         for j in 1:iter
-            P = stair(5)
             Q = knittingneedle(ls[i])
+            P = flatten(Q)
             #println("creacion ok")
-            lastQ, angles, diheds = randomSearch(P,Q,0.5,angmax,angmin,max_iter=parsed_args["max_iter"])
+            lastQ, angles, diheds = randomSearch(P,Q,1e-2,angmax,angmin,max_iter=parsed_args["max_iter"])
             nwork = myid()-1
             if nwork==1
                 per = round(((i-1)*iter+(j-1))*parsed_args["processes"]*100/(parsed_args["indep_simuls"]*n); digits= 2)
@@ -73,7 +73,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
                 n1 = lpad(i,n1zeros,'0')
                 n2zeros = Int(ceil(log10(iter+1)))
                 n2 = lpad(j,n2zeros,"0")
-                saveSimulation(string(savename,n1,"_",n2,),P,Q,lastQ,angles,diheds,saveTrajec=false)
+                saveSimulation(joinpath(savename,string(n1,"_",n2,)),P,Q,lastQ,angles,diheds,saveTrajec=false)
             end
             temp_ts[j] = length(diheds)
 	    #println(temp_ts[j])
@@ -91,8 +91,8 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
 end
 
 function main()
-    if !isdir(dirname(parsed_args["path"]))
-        mkdir(dirname(parsed_args["path"]))
+    if !isdir(parsed_args["path"])
+        mkdir(parsed_args["path"])
     end
     if parsed_args["log_l"]
         exps = LinRange(log10(parsed_args["lmin"]),log10(parsed_args["lmax"]),parsed_args["l_vals"])
@@ -101,7 +101,7 @@ function main()
         lvals = LinRange(parsed_args["lmin"],parsed_args["lmax"],parsed_args["l_vals"])
     end
     lvals,ts_mean,ts_error,rmsds_mean,rmsds_error = lsimulationPar(lvals,parsed_args["indep_simuls"];savename=parsed_args["path"])
-    open(string(parsed_args["path"],"results.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
         table = hcat(lvals,ts_mean,ts_error,rmsds_mean,rmsds_error)
         write(io,"l,t_mean,t_std,rmsd_mean,rmsd_std\n")
         DelimitedFiles.writedlm(io,table,',')
