@@ -9,7 +9,7 @@ function saveChain(name::AbstractString,P::AbstractChain)
     end
 end
 
-function saveTrajectory(name,Q::PolygonalChain2,angles,diheds)
+function saveTrajectory(name,Q::AbstractChain,angles,diheds)
     ns = length(Q)+1
     nzeros = Int(ceil(log10(ns+1)))
     # padding the number with zeros to the right in order to have no problems if sorting
@@ -55,48 +55,59 @@ function saveSimulation(name,P,Q,lastQ,angles,diheds;saveTrajec=true)
 end
 
 function saveLtable(name::AbstractString,lvals::AbstractArray)
-    open(string(name,"lvals.csv"),"w+") do io
+    open(joinpath(name,"lvals.csv"),"w+") do io
         DelimitedFiles.writedlm(io,lvals,',')
     end
 end
 
 function readChain(name::AbstractString)
     chain = DelimitedFiles.readdlm(name,',',Float64)
-    return PolygonalChain2(chain)
+    return PolygonalNew(chain)
 end
 
 function readLSimulation(name::AbstractString)
-    ls = DelimitedFiles.readdlm(string(name,"lvals.csv"))
+    ls = DelimitedFiles.readdlm(joinpath(name,"lvals.csv"))
     ls = reshape(ls,length(ls))
+    ln = length(ls)
     simuls = [file for file in readdir(name)]
     simuls = [file for file in simuls if file[end-4:end]=="P.csv"]
+    # number of total simulations
+    lt = length(simuls)
+    # filter independent interations
     simuls = [split(file,"_")[1] for file in simuls]
     simuls = unique(simuls)
     simuls = sort(simuls)
-    ts_mean = zeros(length(ls))
-    ts_error = zeros(length(ls))
-    rmsds_mean = zeros(length(ls))
-    rmsds_error = zeros(length(ls))
+    
+    ts_mean = zeros(ln)
+    ts_error = zeros(ln)
+    rmsds_mean = zeros(ln)
+    rmsds_error = zeros(ln)
+    
+    tentativeIters = div(lt,ln,RoundUp)
+    ts_table = zeros(ln,tentativeIters)
+    rmsds_table = zeros(ln,tentativeIters)
     for (i,sim) in enumerate(simuls)
         iterations = [file for file in readdir(name) if split(file,"_")[1]==sim]
         iterations = [split(file,"_")[2] for file in iterations]
         iterations = unique(iterations)
-        sim_ts = zeros(length(iterations))
-        sim_rmsds = zeros(length(iterations))
+        ts_sim = zeros(length(iterations))
+        rmsds_sim = zeros(length(iterations))
         for (j,iter) in enumerate(iterations)
             println("reading simulation $(sim),$(iter)")
-            P = readChain(string(name,sim,"_",iter,"_P.csv"))
-            lastQ = readChain(string(name,sim,"_",iter,"_lastQ.csv"))
-            diheds = DelimitedFiles.readdlm(string(name,sim,"_",iter,"_angles-values.csv"))
+            P = readChain(joinpath(name,string(sim,"_",iter,"_P.csv")))
+            lastQ = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
+            diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-values.csv")))
             diheds = reshape(diheds,length(diheds))
-            sim_ts[j] = length(diheds)
-            sim_rmsds[j] = overlapedRmsd(lastQ,P)
+            ts_sim[j] = length(diheds)
+            rmsds_sim[j] = overlapedRmsd(lastQ,P)
+            ts_table[i,j] = length(diheds)
+            rmsds_table[i,j] = overlapedRmsd(lastQ,P)
         end
-        ts_mean[i] = Statistics.mean(sim_ts)
-        ts_error[i] = Statistics.std(sim_ts)
-        rmsds_mean[i] = Statistics.mean(sim_rmsds)
-        rmsds_error[i] = Statistics.std(sim_rmsds)
+        ts_mean[i] = Statistics.mean(ts_sim)
+        ts_error[i] = Statistics.std(ts_sim)
+        rmsds_mean[i] = Statistics.mean(rmsds_sim)
+        rmsds_error[i] = Statistics.std(rmsds_sim)
     end
-    return ls,ts_mean,ts_error,rmsds_mean,rmsds_error
+    return ls,ts_mean,ts_error,rmsds_mean,rmsds_error, ts_table, rmsds_table
 end
 
