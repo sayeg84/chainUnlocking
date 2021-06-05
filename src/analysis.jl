@@ -2,7 +2,7 @@ include("io.jl")
 using Plots, DelimitedFiles
 
 function main()    
-    ls,ts_mean,ts_error,rmsds_mean,rmsds_error,ts_table,rmsds_table = readLSimulation(ARGS[1])
+    ls,ts_mean,ts_error,rmsds_mean,rmsds_error,ts_table,rmsds_table,accepted_moves_table = readLSimulation(ARGS[1])
     println("saving results")
     open(joinpath(ARGS[1],"results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,rmsds_mean,rmsds_error)
@@ -14,6 +14,9 @@ function main()
     end
     open(joinpath(ARGS[1],"rmsds_table.csv"),"w+") do io
         DelimitedFiles.writedlm(io,rmsds_table,',')
+    end
+    open(joinpath(ARGS[1],"accepted_moves_table.csv"),"w+") do io
+        DelimitedFiles.writedlm(io,accepted_moves_table,',')
     end
     
     println("Making Plots")
