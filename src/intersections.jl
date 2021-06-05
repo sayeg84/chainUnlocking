@@ -78,7 +78,7 @@ If there is an unique solution, it returns `1,x,y`
 """
 function twoxtwoLinearSystem(a11::T,a12::T,b1::T,a21::T,a22::T,b2::T)::Tuple{Int8,T,T}
     det = a11*a22 - a12*a21
-    if det != 0
+    if !isapprox(det,0,atol=1e-15)
         detx = b1*a22 - b2*a12
         dety = a11*b2 - a21*b1
         return 1, detx/det, dety/det
@@ -562,7 +562,7 @@ end
 function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta;debug=false)
     # segments already intersect
     # this should never happen in practice but we add it for debugging reasons
-    #println("dentro caso 3")
+    # println("dentro caso 3")
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
         #println("WARNING: segments intersect before rotating")
         return true
@@ -632,7 +632,7 @@ Returns the parameters `s,t` at which the intersection of the line containing se
 function st(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::Tuple{T,T}
     b3x,b3y,m3x,m3y = bsms(q1,q2,vq,theta)
     s = ((b3y-p1.y)*vp.x - (b3x-p1.x)*vp.y)/(m3x*vp.y - m3y*vp.x)
-    if vp.x != 0
+    if !isapprox(vp.x,0,atol=1e-15)
         t = (b3x + s*m3x - p1.x)/vp.x
     else
         t = (b3y + s*m3y - p1.y)/vp.y
@@ -1000,7 +1000,7 @@ function planeRotationXY(u::Point)::Matrix
 end
 
 
-function checkIntersection(P::AbstractChain,k::Integer,theta::Real)::Bool
+function checkRotationIntersection(P::AbstractChain,k::Integer,theta::Real)::Bool
     n = length(P)
     flag = false
     # index of segments that will rotate

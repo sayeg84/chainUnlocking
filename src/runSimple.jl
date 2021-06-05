@@ -51,11 +51,11 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         temp_rmsds = zeros(iter)
         temp_ts = zeros(iter)
         for j in 1:iter
-            
+            println(j)
             Q = knittingneedle(ls[i])
             P = flatten(Q)
             #println("creacion ok")
-            lastQ, angles, diheds = randomSearch(P,Q,1e-2,angmax,angmin,max_iter=parsed_args["max_iter"])
+            lastQ, angles, diheds = simulatedAnnealing(P,Q,1e-2,angmax,angmin,max_iter=parsed_args["max_iter"])
             per = round(((i-1)*iter+(j-1))*100/(parsed_args["indep_simuls"]*n); digits= 2)
             prog = "Progress: $(per) % "
             println()

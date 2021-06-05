@@ -3,6 +3,10 @@ using  ArgParse
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
+        "--algorithm"
+            help = "Algorithm to make simulation"
+            arg_type = String
+            default = "localSearchRandom"
         "--path"
             help = "Folder to save the simulations"
             arg_type = String
@@ -43,7 +47,12 @@ end
 const parsed_args = parse_commandline()
 using Distributed, SharedArrays
 Distributed.addprocs(parsed_args["processes"])
+
 @everywhere include("algorithms.jl")
+
+let z = getfield(Main,Symbol(parsed_args["algorithm"]))
+    @sync @everywhere const algoFunc = $z
+end
 
 function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;savename="")
     n = length(ls)
@@ -55,10 +64,10 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         temp_rmsds = zeros(iter)
         temp_ts = zeros(iter)
         for j in 1:iter
-            Q = knittingneedle(ls[i])
+            Q = fourKnot(ls[i])
             P = flatten(Q)
             #println("creacion ok")
-            lastQ, angles, diheds = randomSearch(P,Q,1e-2,angmax,angmin,max_iter=parsed_args["max_iter"])
+            lastQ, angles, diheds = algoFunc(P,Q,1e-2,angmax,angmin,max_iter=parsed_args["max_iter"])
             nwork = myid()-1
             if nwork==1
                 per = round(((i-1)*iter+(j-1))*parsed_args["processes"]*100/(parsed_args["indep_simuls"]*n); digits= 2)

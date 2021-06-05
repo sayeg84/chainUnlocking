@@ -1,4 +1,4 @@
-include("intersections.jl")
+include("algorithms.jl")
 
 function testRotation(n,epsilon=1e-6)
     flag = true
@@ -332,7 +332,7 @@ end
 
 function plotChain!(P::AbstractChain,c,lw=2)
     arr = toArray(P)
-    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c)
+    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z")
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
 end
 

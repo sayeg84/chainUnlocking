@@ -86,6 +86,7 @@ function readLSimulation(name::AbstractString)
     tentativeIters = div(lt,ln,RoundUp)
     ts_table = zeros(ln,tentativeIters)
     rmsds_table = zeros(ln,tentativeIters)
+    accepted_moves_table = zeros(ln,tentativeIters)
     for (i,sim) in enumerate(simuls)
         iterations = [file for file in readdir(name) if split(file,"_")[1]==sim]
         iterations = [split(file,"_")[2] for file in iterations]
@@ -96,18 +97,27 @@ function readLSimulation(name::AbstractString)
             println("reading simulation $(sim),$(iter)")
             P = readChain(joinpath(name,string(sim,"_",iter,"_P.csv")))
             lastQ = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
-            diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-values.csv")))
+            diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-indexes.csv")),',',Int16)
             diheds = reshape(diheds,length(diheds))
             ts_sim[j] = length(diheds)
             rmsds_sim[j] = overlapedRmsd(lastQ,P)
             ts_table[i,j] = length(diheds)
             rmsds_table[i,j] = overlapedRmsd(lastQ,P)
+            accepted_moves_table[i,j] = length([k for k in diheds if k!=0])
         end
         ts_mean[i] = Statistics.mean(ts_sim)
         ts_error[i] = Statistics.std(ts_sim)
         rmsds_mean[i] = Statistics.mean(rmsds_sim)
         rmsds_error[i] = Statistics.std(rmsds_sim)
     end
-    return ls,ts_mean,ts_error,rmsds_mean,rmsds_error, ts_table, rmsds_table
+    return ls,ts_mean,ts_error,rmsds_mean,rmsds_error, ts_table, rmsds_table,accepted_moves_table
 end
 
+function makeCoordinates(name)
+    Q = readChain(string(name,"_Q.csv"))
+    angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"))
+    angles = reshape(angles,length(angles))
+    diheds = DelimitedFiles.readdlm(string(name,"_angles-indexes.csv"),',',Int16)
+    diheds = reshape(diheds,length(diheds))
+    saveTrajectory(string(name,"_trajectory.csv"),Q,angles,diheds)
+ end
