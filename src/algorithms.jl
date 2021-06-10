@@ -71,11 +71,11 @@ function fourKnot(l::Real=sqrt(2);ep::Real=0.1)
     v1 = ep*ez
     v2 = ex
     v3 = ex + ey
-    v4 = ey + + ep*ez
+    v4 = ey + ep*ez
     v5 = e0
     v6 = l*ex + ep*ey + ep*ez
     vertices = [v0,v1,v2,v3,v4,v5,v6]
-    vertices = [1e-6*Point() + v for v in vertices]
+    vertices = [1e-6 + v for v in vertices]
     P = PolygonalNew(vertices)
 end
 

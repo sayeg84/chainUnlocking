@@ -191,7 +191,7 @@ In this case, the intersection only ocurrs if the plane is the same for both seg
 """
 case1SurfaceCoefficients(q1::Point,q2::Point,vq::Point)::Tuple{T,T,T}
 
-Returns coeficients `z_0,z_1,z_2` such that the surface of revolution made by rotation segment q1q2 around the zaxis is described by ``r^2(z) = z_2 z^2 + 2 z_1 z + z_0``
+Returns coeficients `z_0,z_1,z_2` such that the surface of revolution made by rotating segment q1q2 around the zaxis is described by ``r^2(z) = z_2 z^2 + 2 z_1 z + z_0``
 
 For more information, check [this math SO post](https://math.stackexchange.com/questions/4082142/intersection-between-rotating-3d-line-and-3d-line)
 """
@@ -311,18 +311,27 @@ Given a parameter `t` which is root of the equation ``x^2(t) + y^2(t)= r^2(z(t))
 
 It returns a tuple `a,p` where `a` is a Bool saying if there is intersection and `p` is the point of such intersection.
 """
-function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Tuple{Bool,Point}
+function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=false)::Tuple{Bool,Point}
     # checking the intersection is within the segment
     if 0 <= t <= 1
-        #println("la raíz esta bien")
+        debug && println("la raíz esta bien")
         # a,b is the interval of z values for the q1-q2 segment
         a,b = minmax(q1.z,q2.z)
         inp = p1 + t*vp
-        #println(inp)
+        debug && println(inp)
+        debug && println("$a,$b")
+        s,ang = getParameters(t,p1,p2,vp,q1,q2,vq)
+        debug && println(s)
+        debug && println(ang)
         # check intersection only if z value is in interval
         if a <= inp.z <= b 
-            t,ang = getParameters(t,p1,p2,vp,q1,q2,vq)
-            if 0 <= t <= 1 && angleTest(ang,theta)
+            debug && println("en z está bien")
+            s,ang = getParameters(t,p1,p2,vp,q1,q2,vq)
+            debug && println(s)
+            debug && println(ang)
+            debug && println(0 <= s <= 1)
+            debug && println(angleTest(ang,theta))
+            if 0 <= s <= 1 && angleTest(ang,theta)
                 return true, inp
             end
         end 
@@ -332,10 +341,11 @@ function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,v
     end
 end
 
-function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Tuple{Bool,Point,Point}
+function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=false)::Tuple{Bool,Point,Point}
     z_2,z_1,z_0 = case1SurfaceCoefficients(q1,q2,vq)
     roots = case1SurfaceQuadricRoots(z_2,z_1,z_0,p1,p2,vp)
-    #println(roots)
+    debug && println(roots)
+    debug && println(roots)
     # special case for when the intersection happens in an infinite amount of values
     if roots[1] == -1
         rot_ang = xyIangle(vq,vp)
@@ -345,12 +355,12 @@ function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         val = segmentOverlap(p1,p2,q1prime,q2prime)
         return val,e0,e0
     elseif roots[1] == 1
-        int = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta)
+        int = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta,debug=debug)
         return int[1],int[2],e0
     elseif roots[1] == 2
         #println("aca")
-        int1 = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta)
-        int2 = case1CheckRoot(roots[3],p1,p2,vp,q1,q2,vq,theta)
+        int1 = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta,debug=debug)
+        int2 = case1CheckRoot(roots[3],p1,p2,vp,q1,q2,vq,theta,debug=debug)
         return int1[1] || int2[1], int1[2],int2[2]
     else
         return false,e0,e0
@@ -564,7 +574,7 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
     # this should never happen in practice but we add it for debugging reasons
     # println("dentro caso 3")
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
-        #println("WARNING: segments intersect before rotating")
+        debug && println("WARNING: segments intersect before rotating")
         return true
     # only test for intersection if points are in the same interval        
     elseif isapprox(p1.z,q1.z,atol=1e-15)
@@ -964,22 +974,22 @@ end
 =#
 
 
-function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,theta::Real)
+function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,theta::Real;debug=false)
     vp = p2-p1
     vq = q2-q1
     A = isapprox(vp.z,0,atol=1e-15)
     B = isapprox(vq.z,0,atol=1e-15)
     # case 1: the segments are not contained in an `xy` plane
     if !B
-        #println("caso 1")
-        return case1Intersection(p1,p2,vp,q1,q2,vq,theta)
+        debug && println("caso 1")
+        return case1Intersection(p1,p2,vp,q1,q2,vq,theta,debug=debug)
     # case 2: the segment
     elseif !A && B
-        #println("caso 2")
-        return case2Intersection(p1,p2,vp,q1,q2,vq,theta)
+        debug && println("caso 2")
+        return case2Intersection(p1,p2,vp,q1,q2,vq,theta,debug=debug)
     elseif A && B
-        #println("caso 3")
-        return case3Intersection(p1,p2,vp,q1,q2,vq,theta)
+        debug && println("caso 3")
+        return case3Intersection(p1,p2,vp,q1,q2,vq,theta,debug=debug)
     end
 end
 
@@ -1000,7 +1010,7 @@ function planeRotationXY(u::Point)::Matrix
 end
 
 
-function checkRotationIntersection(P::AbstractChain,k::Integer,theta::Real)::Bool
+function checkRotationIntersection(P::AbstractChain,k::Integer,theta::Real;debug=false)::Bool
     n = length(P)
     flag = false
     # index of segments that will rotate
@@ -1008,7 +1018,11 @@ function checkRotationIntersection(P::AbstractChain,k::Integer,theta::Real)::Boo
         # indexes of static semgments
         suplim = i==k+2 ? k : k+1
         for j in 1:suplim
-            val = surfaceSegmentIntersection(P[j],P[j+1],P[i],P[i+1],theta)[1]
+            debug && println("$i,$j")
+            ep = 0.1
+            vpj = P[j+1]-P[j]
+            vpi = P[i+1]-P[i]
+            val = surfaceSegmentIntersection(P[j]-ep*vpj,P[j+1]+ep*vpj,P[i]-ep*vpi,P[i+1]+ep*vpi,theta,debug=debug)[1]
             #if val
             #    println(k)
             #    println(i)

@@ -65,6 +65,18 @@ function readChain(name::AbstractString)
     return PolygonalNew(chain)
 end
 
+function readSingleSimulation(name::AbstractString)
+    P = readChain(string(name,"_P.csv"))
+    Q = readChain(string(name,"_Q.csv"))
+    lastQ = readChain(string(name,"_lastQ.csv"))
+    diheds = DelimitedFiles.readdlm(string(name,"_angles-indexes.csv"),',',Int16)
+    diheds = reshape(diheds,length(diheds))
+    angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"),',',Float64)
+    angles = reshape(angles,length(angles))
+    return P,Q,lastQ, diheds, angles
+end
+
+
 function readLSimulation(name::AbstractString)
     ls = DelimitedFiles.readdlm(joinpath(name,"lvals.csv"))
     ls = reshape(ls,length(ls))
@@ -112,6 +124,9 @@ function readLSimulation(name::AbstractString)
     end
     return ls,ts_mean,ts_error,rmsds_mean,rmsds_error, ts_table, rmsds_table,accepted_moves_table
 end
+
+
+
 
 function makeCoordinates(name)
     Q = readChain(string(name,"_Q.csv"))

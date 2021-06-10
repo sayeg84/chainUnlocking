@@ -332,7 +332,7 @@ end
 
 function plotChain!(P::AbstractChain,c,lw=2)
     arr = toArray(P)
-    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z")
+    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=:darkrainbow,markersize=1)
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
 end
 
