@@ -75,8 +75,8 @@ function fourKnot(l::Real=sqrt(2);ep::Real=0.1)
     v5 = e0
     v6 = l*ex + ep*ey + ep*ez
     vertices = [v0,v1,v2,v3,v4,v5,v6]
-    vertices = [1e-6 + v for v in vertices]
-    P = PolygonalNew(vertices)
+    vertices = [v + 1e-8*Point() for v in vertices]
+    return PolygonalNew(vertices)
 end
 
 function flatten(P::AbstractChain)

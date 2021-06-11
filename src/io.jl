@@ -54,14 +54,14 @@ function saveSimulation(name,P,Q,lastQ,angles,diheds;saveTrajec=true)
     end
 end
 
-function saveLtable(name::AbstractString,lvals::AbstractArray)
-    open(joinpath(name,"lvals.csv"),"w+") do io
-        DelimitedFiles.writedlm(io,lvals,',')
+function saveLtable(name::AbstractString,ls::AbstractArray)
+    open(joinpath(name,"ls.csv"),"w+") do io
+        DelimitedFiles.writedlm(io,ls,',')
     end
 end
 
 function readChain(name::AbstractString)
-    chain = DelimitedFiles.readdlm(name,',',Float64)
+    chain = DelimitedFiles.readdlm(name,',',T)
     return PolygonalNew(chain)
 end
 
@@ -71,14 +71,14 @@ function readSingleSimulation(name::AbstractString)
     lastQ = readChain(string(name,"_lastQ.csv"))
     diheds = DelimitedFiles.readdlm(string(name,"_angles-indexes.csv"),',',Int16)
     diheds = reshape(diheds,length(diheds))
-    angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"),',',Float64)
+    angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"),',',T)
     angles = reshape(angles,length(angles))
     return P,Q,lastQ, diheds, angles
 end
 
 
 function readLSimulation(name::AbstractString)
-    ls = DelimitedFiles.readdlm(joinpath(name,"lvals.csv"))
+    ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
     simuls = [file for file in readdir(name)]

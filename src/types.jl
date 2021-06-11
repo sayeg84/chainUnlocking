@@ -1,6 +1,6 @@
 using LinearAlgebra, BenchmarkTools, StaticArrays
 
-const T = Float64
+const T = BigFloat
 
 abstract type AbstractPoint end
 

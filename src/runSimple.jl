@@ -21,7 +21,7 @@ function parse_commandline()
             help = "maximum value for l"
             arg_type = Float64
             default = 1.42
-        "--l_vals"
+        "--lvals"
             help = "Values for the L interval"
             arg_type = Int
             default = 12
@@ -90,20 +90,20 @@ function main()
         mkdir(parsed_args["path"])
     end
     if parsed_args["log_l"]
-        exps = LinRange(log10(parsed_args["lmin"]),log10(parsed_args["lmax"]),parsed_args["l_vals"])
-        lvals = [10^x for x in exps]
+        exps = LinRange(log10(parsed_args["lmin"]),log10(parsed_args["lmax"]),parsed_args["lvals"])
+        ls = [10^x for x in exps]
     else
-        lvals = LinRange(parsed_args["lmin"],parsed_args["lmax"],parsed_args["l_vals"])
+        ls = LinRange(parsed_args["lmin"],parsed_args["lmax"],parsed_args["lvals"])
     end
-    lvals,ts_mean,ts_error,rmsds_mean,rmsds_error = lsimulationPar(lvals,parsed_args["indep_simuls"];parsed_args=parsed_args,savename=parsed_args["path"])
+    ls,ts_mean,ts_error,rmsds_mean,rmsds_error = lsimulationPar(ls,parsed_args["indep_simuls"];parsed_args=parsed_args,savename=parsed_args["path"])
     open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
-        table = hcat(lvals,ts_mean,ts_error,rmsds_mean,rmsds_error)
+        table = hcat(ls,ts_mean,ts_error,rmsds_mean,rmsds_error)
         write(io,"l,t_mean,t_std,rmsd_mean,rmsd_std\n")
         DelimitedFiles.writedlm(io,table,',')
     end
     println("Progress: 100 % ")
-    saveLtable(parsed_args["path"],lvals)
-    scatter(lvals,rmsds_mean,yerror=rmsds_error,ylabel="RMSD sobrepuesto",xlabel="l",label=false)
+    saveLtable(parsed_args["path"],ls)
+    scatter(ls,rmsds_mean,yerror=rmsds_error./2,ylabel="RMSD sobrepuesto",xlabel="l",label=false)
     savefig(joinpath(parsed_args["path"],"lsimulation.pdf"))
 end
 

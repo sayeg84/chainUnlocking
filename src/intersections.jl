@@ -142,8 +142,8 @@ function segmentPlaneIntersection(p1::Point,p2::Point,u::Point)::Tuple{Int8,Poin
     discrim = dot(v,u)
     num = dot(-1*p1,u)
     t = num/discrim
-    if discrim == 0
-        if num == 0
+    if isapprox(discrim, 0,atol=1e-15)
+        if isapprox(num, 0,atol=1e-15)
             # line is contained in plane
             return 1, e0
         else
@@ -260,9 +260,9 @@ function case1SurfaceQuadricRoots(z_2::Real,z_1::Real,z_0::Real,p1::Point,p2::Po
     R += z_0*(sqr(vp.x) + sqr(vp.y))
     if isapprox(D,0,atol=1e-15) && isapprox(R,0,atol=1e-15) && isapprox(S,0,atol=1e-15)
         return -1,0,0
-    elseif R < 0 || isapprox(D,0,atol=1e-15)
+    elseif R < -1e-8 || isapprox(D,0,atol=1e-15)
         return 0, 0, 0
-    elseif isapprox(R,0,atol=1e-15)
+    elseif -1e-8 <= R < 1e-15
         return 1, S/D, S/D
     else
         return 2, (S - sqrt(R))/D, (S + sqrt(R))/D
@@ -344,7 +344,6 @@ end
 function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=false)::Tuple{Bool,Point,Point}
     z_2,z_1,z_0 = case1SurfaceCoefficients(q1,q2,vq)
     roots = case1SurfaceQuadricRoots(z_2,z_1,z_0,p1,p2,vp)
-    debug && println(roots)
     debug && println(roots)
     # special case for when the intersection happens in an infinite amount of values
     if roots[1] == -1
@@ -445,7 +444,7 @@ function case2checkRoot(s::T,q1::Point,q2::Point,vq::Point,inp::Point,theta::Rea
 end
 
 
-function case2Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Tuple{Bool,Point,Point}
+function case2Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=true)::Tuple{Bool,Point,Point}
     a,b = minmax(p1.z,p2.z)
     # plane parallel to XY must be in the z interval of segment p1p2
     if a < q1.z < b 
@@ -1019,7 +1018,7 @@ function checkRotationIntersection(P::AbstractChain,k::Integer,theta::Real;debug
         suplim = i==k+2 ? k : k+1
         for j in 1:suplim
             debug && println("$i,$j")
-            ep = 0.1
+            ep = 0.0
             vpj = P[j+1]-P[j]
             vpi = P[i+1]-P[i]
             val = surfaceSegmentIntersection(P[j]-ep*vpj,P[j+1]+ep*vpj,P[i]-ep*vpi,P[i+1]+ep*vpi,theta,debug=debug)[1]

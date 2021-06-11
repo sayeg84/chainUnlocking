@@ -20,9 +20,9 @@ function main()
     end
     
     println("Making Plots")
-    scatter(ls,ts_mean,yerror=ts_error,label=false,title="L analysis",ylabel="steps",xlabel="L")
+    scatter(ls,ts_mean,yerror=ts_error./2,label=false,title="L analysis",ylabel="steps",xlabel="L")
     savefig(joinpath(ARGS[1],"l-t.pdf"))
-    scatter(ls,rmsds_mean,yerror=rmsds_error,label=false,title="L analysis",ylabel="rmsd",xlabel="L")
+    scatter(ls,rmsds_mean,yerror=rmsds_error./2,label=false,title="L analysis",ylabel="rmsd",xlabel="L")
     savefig(joinpath(ARGS[1],"l-rmsd.pdf"))
     println("Done")
 end
