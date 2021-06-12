@@ -1,4 +1,4 @@
-include("types.jl")
+include("algorithms.jl")
 
 using DelimitedFiles, Statistics
 
@@ -39,8 +39,7 @@ function saveTrajectory(name,Q::AbstractChain,angles,diheds)
     end
 end
 
-function saveSimulation(name,P,Q,lastQ,angles,diheds;saveTrajec=true)
-    saveChain(string(name,"_P.csv"),P)
+function saveSimulation(name,Q,lastQ,angles,diheds;saveTrajec=true)
     saveChain(string(name,"_Q.csv"),Q)
     saveChain(string(name,"_lastQ.csv"),lastQ)
     if saveTrajec
@@ -60,20 +59,26 @@ function saveLtable(name::AbstractString,ls::AbstractArray)
     end
 end
 
+function saveMetaParams(name::AbstractString,parsed_args)
+    open(joinpath(name,"metaParams.csv"),"w+") do io
+        write(io,"algorithm,$(parsed_args["algorithm"])\n")
+        write(io,"minFunc,$(parsed_args["minFunc"])\n")
+    end
+end
+
 function readChain(name::AbstractString)
     chain = DelimitedFiles.readdlm(name,',',T)
     return PolygonalNew(chain)
 end
 
 function readSingleSimulation(name::AbstractString)
-    P = readChain(string(name,"_P.csv"))
     Q = readChain(string(name,"_Q.csv"))
     lastQ = readChain(string(name,"_lastQ.csv"))
     diheds = DelimitedFiles.readdlm(string(name,"_angles-indexes.csv"),',',Int16)
     diheds = reshape(diheds,length(diheds))
     angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"),',',T)
     angles = reshape(angles,length(angles))
-    return P,Q,lastQ, diheds, angles
+    return Q, lastQ, diheds, angles
 end
 
 
@@ -81,8 +86,12 @@ function readLSimulation(name::AbstractString)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
+    metaParams = DelimitedFiles.readdlm(joinpath(name,"metaParams.csv"),',')
+    metaParams = Dict(zip(metaParams[:,1],metaParams[:,2]))
+    println(metaParams["minFunc"])
+    minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
     simuls = [file for file in readdir(name)]
-    simuls = [file for file in simuls if file[end-4:end]=="P.csv"]
+    simuls = [file for file in simuls if file[end-4:end]=="Q.csv"]
     # number of total simulations
     lt = length(simuls)
     # filter independent interations
@@ -92,37 +101,36 @@ function readLSimulation(name::AbstractString)
     
     ts_mean = zeros(ln)
     ts_error = zeros(ln)
-    rmsds_mean = zeros(ln)
-    rmsds_error = zeros(ln)
+    minfs_mean = zeros(ln)
+    minfs_error = zeros(ln)
     
     tentativeIters = div(lt,ln,RoundUp)
     ts_table = zeros(ln,tentativeIters)
-    rmsds_table = zeros(ln,tentativeIters)
+    minfs_table = zeros(ln,tentativeIters)
     accepted_moves_table = zeros(ln,tentativeIters)
     for (i,sim) in enumerate(simuls)
         iterations = [file for file in readdir(name) if split(file,"_")[1]==sim]
         iterations = [split(file,"_")[2] for file in iterations]
         iterations = unique(iterations)
         ts_sim = zeros(length(iterations))
-        rmsds_sim = zeros(length(iterations))
+        minfs_sim = zeros(length(iterations))
         for (j,iter) in enumerate(iterations)
             println("reading simulation $(sim),$(iter)")
-            P = readChain(joinpath(name,string(sim,"_",iter,"_P.csv")))
             lastQ = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
             diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-indexes.csv")),',',Int16)
             diheds = reshape(diheds,length(diheds))
             ts_sim[j] = length(diheds)
-            rmsds_sim[j] = overlapedRmsd(lastQ,P)
+            minfs_sim[j] = minFunc(lastQ)
             ts_table[i,j] = length(diheds)
-            rmsds_table[i,j] = overlapedRmsd(lastQ,P)
+            minfs_table[i,j] = minFunc(lastQ)
             accepted_moves_table[i,j] = length([k for k in diheds if k!=0])
         end
         ts_mean[i] = Statistics.mean(ts_sim)
         ts_error[i] = Statistics.std(ts_sim)
-        rmsds_mean[i] = Statistics.mean(rmsds_sim)
-        rmsds_error[i] = Statistics.std(rmsds_sim)
+        minfs_mean[i] = Statistics.mean(minfs_sim)
+        minfs_error[i] = Statistics.std(minfs_sim)
     end
-    return ls,ts_mean,ts_error,rmsds_mean,rmsds_error, ts_table, rmsds_table,accepted_moves_table
+    return ls,ts_mean,ts_error,minfs_mean,minfs_error, ts_table, minfs_table,accepted_moves_table
 end
 
 

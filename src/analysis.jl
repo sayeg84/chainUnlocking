@@ -1,29 +1,44 @@
+include("algorithms.jl")
 include("io.jl")
-using Plots, DelimitedFiles
+
+using Plots, DelimitedFiles, ArgParse
+
+function parse_commandline()
+    s = ArgParseSettings()
+    @add_arg_table s begin
+        "--path"
+            help = "Folder to save the simulations"
+            arg_type = String
+            required = true
+    end
+    return parse_args(s)
+end
+
+const parsed_args = parse_commandline()
 
 function main()    
-    ls,ts_mean,ts_error,rmsds_mean,rmsds_error,ts_table,rmsds_table,accepted_moves_table = readLSimulation(ARGS[1])
+    ls,ts_mean,ts_error,minfs_mean,minfs_error,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"])
     println("saving results")
-    open(joinpath(ARGS[1],"results.csv"),"w+") do io
-        table = hcat(ls,ts_mean,ts_error,rmsds_mean,rmsds_error)
-        write(io,"l,t_mean,t_std,rmsd_mean,rmsd_std\n")
+    open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
+        table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
+        write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
         DelimitedFiles.writedlm(io,table,',')
     end
-    open(joinpath(ARGS[1],"ts_table.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],"ts_table.csv"),"w+") do io
         DelimitedFiles.writedlm(io,ts_table,',')
     end
-    open(joinpath(ARGS[1],"rmsds_table.csv"),"w+") do io
-        DelimitedFiles.writedlm(io,rmsds_table,',')
+    open(joinpath(parsed_args["path"],"minfs_table.csv"),"w+") do io
+        DelimitedFiles.writedlm(io,minfs_table,',')
     end
-    open(joinpath(ARGS[1],"accepted_moves_table.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],"accepted_moves_table.csv"),"w+") do io
         DelimitedFiles.writedlm(io,accepted_moves_table,',')
     end
     
     println("Making Plots")
     scatter(ls,ts_mean,yerror=ts_error./2,label=false,title="L analysis",ylabel="steps",xlabel="L")
-    savefig(joinpath(ARGS[1],"l-t.pdf"))
-    scatter(ls,rmsds_mean,yerror=rmsds_error./2,label=false,title="L analysis",ylabel="rmsd",xlabel="L")
-    savefig(joinpath(ARGS[1],"l-rmsd.pdf"))
+    savefig(joinpath(parsed_args["path"],"l-t.pdf"))
+    scatter(ls,minfs_mean,yerror=minfs_error./2,label=false,title="L analysis",ylabel="minf",xlabel="L")
+    savefig(joinpath(parsed_args["path"],"l-minf.pdf"))
     println("Done")
 end
 

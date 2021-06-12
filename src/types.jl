@@ -360,7 +360,7 @@ function PolygonalNew(arr::Array{<:Real,2})
     end
 end
 
-import Base.length, Base.copy, Base.getindex, Base.setindex!
+import Base.length, Base.copy, Base.getindex, Base.setindex!, Base.lastindex
 
 function Base.length(P::AbstractChain)::Int64
     return length(P.vertices)-1
@@ -376,6 +376,10 @@ end
 
 function Base.setindex!(P::AbstractChain,p::AbstractPoint,idx::Integer)
     P.vertices[idx] = p
+end
+
+function Base.lastindex(P::AbstractChain)
+    return length(P.vertices)
 end
 
 function toArray(P::AbstractChain)::Array{T,2}
