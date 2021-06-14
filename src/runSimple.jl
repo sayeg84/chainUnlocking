@@ -12,7 +12,11 @@ function parse_commandline()
         "--minFunc"
             help = "Minimizing function"
             arg_type = String
-            default = "moveToFlatten"
+            default = "distToFlat"
+        "--chain"
+            help = "Chain to simulate"
+            arg_type = String
+            default = "knittingNeedle"
         "--path"
             help = "Folder to save the simulations"
             arg_type = String
@@ -60,6 +64,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
     n = length(ls)
     algoFunc = getfield(Main,Symbol(parsed_args["algorithm"]))
     minFunc = getfield(Main,Symbol(parsed_args["minFunc"]))
+    chainFunc = getfield(Main,Symbol(parsed_args["chain"]))
     minfs_mean = zeros(n)
     minfs_error = zeros(n)
     ts_mean = zeros(n)
@@ -68,7 +73,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         temp_minfs = zeros(iter)
         temp_ts = zeros(iter)
         for j in 1:iter
-            Q = knittingneedle(ls[i])
+            Q = chainFunc(ls[i])
             #println("creacion ok")
             lastQ, angles, diheds = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,max_iter=parsed_args["max_iter"])
             per = round(((i-1)*iter+(j-1))*100/(parsed_args["indep_simuls"]*n); digits= 2)

@@ -52,7 +52,7 @@ function stair(n::Integer)::PolygonalNew
     return PolygonalNew(vertices)
 end
 
-function knittingneedle(l::Real=2.0;ep::Real=1/6)::PolygonalNew
+function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalNew
     p0 = ex - ep*ey
     p1 = rotate(ez,-pi/6,ex)
     p2 = e0
@@ -84,7 +84,7 @@ function flatten(P::AbstractChain)::PolygonalNew
     return PolygonalNew(lengths,angles,newDiheds)
 end
 
-function moveToFlatten(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
+function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
     if length(P) == length(Q)
         return overlapedRmsd(Q,P)
     else
@@ -96,6 +96,31 @@ end
 function squaredMaxSpan(Q::AbstractChain)::T
     v = Q[1] - Q[end]
     return -dot(v,v)
+end
+
+function demaineEnergy1(Q::AbstractChain)::T
+    n = length(Q)
+    sum = 0
+    for i in 1:n
+        for j in i+2:(n+1)
+            sum += sqr(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
+        end
+    end
+    return sum
+end
+
+function demaineEnergy2(Q::AbstractChain)::T
+    n = length(Q)
+    sum = 0
+    for i in 1:n
+        for j in 1:(i-1)
+            sum += sqr(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
+        end
+        for j in (i+2):(n+1)
+            sum += sqr(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
+        end
+    end
+    return sum
 end
 
 function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;max_iter::Integer=1000)
