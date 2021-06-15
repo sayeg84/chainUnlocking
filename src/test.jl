@@ -364,9 +364,41 @@ function testParallelCheck(n)
     return flag
 end
 
+function benchmarkC1Quadratic1()
+    p1 = Point()
+    p2 = Point()
+    q1 = Point()
+    q2 = Point()
+    theta = pi/4*(2*rand()-1)
+    c,r,d = case1SurfaceCoefficients(q1,q2,q2-q1)
+    return case1SurfaceQuadricRoots(c,r,d,p1,p2,q2-q1)
+end
 
+function benchmarkC1Quadratic2()
+    p1 = Point()
+    p2 = Point()
+    q1 = Point()
+    q2 = Point()
+    theta = pi/4*(2*rand()-1)
+    c,r,d = case1SurfaceCoefficients(q1,q2,q2-q1)
+    return case1SurfaceQuadricRoots2(c,r,d,p1,p2,q2-q1)
+end
 
-
+function assertRootsEqual(n)
+    flag = true
+    for i in 1:n
+        p1 = Point()
+        p2 = Point()
+        q1 = Point()
+        q2 = Point()
+        theta = pi/4*(2*rand()-1)
+        c,r,d = case1SurfaceCoefficients(q1,q2,q2-q1)
+        A =  case1SurfaceQuadricRoots(c,r,d,p1,p2,q2-q1)
+        B =  case1SurfaceQuadricRoots(c,r,d,p1,p2,q2-q1)
+        flag = flag && (A[1] == B[1] && isapprox(A[2],B[2],atol=1e-15) && isapprox(A[3],B[3],atol=1e-15))
+    end
+    return flag
+end
 
 
 
@@ -376,5 +408,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println()
     println("entramos")
     println()  
-    println(testThirdCaseIntersection())
+    #println(testThirdCaseIntersection())
+    display(@benchmark benchmarkC1Quadratic1())
+    println()
+    println()
+    display(@benchmark benchmarkC1Quadratic2())
+    println()
+    println(assertRootsEqual(1000))
 end

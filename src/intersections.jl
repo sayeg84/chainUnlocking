@@ -2,6 +2,69 @@ include("derivatives.jl")
 include("scalarRootFinding.jl")
 include("types.jl")
 
+
+
+"""
+intervalOverlap(a::Real,b::Real,c::Real,d::Real)::Bool
+
+Function to check wheter the intervals of real numbers between a,b and c,d have an intersection.
+"""
+function intervalOverlap(a::Real,b::Real,c::Real,d::Real)::Bool
+    a,b = minmax(a,b)
+    c,d = minmax(c,d)
+    return (b >= c) && (d >= a)
+end
+
+
+"""
+segmentOverlap(p1::Point,p2::Point,q1::Point,q2::Point)::Bool
+
+Function to check wheter segments on the same line `p1p2` and `q1q2` intersect
+"""
+
+function segmentOverlap(p1::Point,p2::Point,q1::Point,q2::Point)::Bool
+    xtest = intervalOverlap(p1.x,p2.x,q1.x,q1.x)
+    ytest = intervalOverlap(p1.y,p2.y,q1.y,q1.y)
+    ztest = intervalOverlap(p1.z,p2.z,q1.z,q1.z)
+    # segment overlaps if all their x, y and z intervals overlap
+    return xtest && ytest && ztest
+end
+
+
+
+
+
+"""
+quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
+
+Returns a triple `n,r1,r2` containing the solutions of equation ``a x^2 + bx + c = 0``. `n` is the number of different roots that exist of the equation.
+"""
+function quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
+    R = pow2(b) - 4*a*c
+    A = isapprox(a,0,atol=1e-15)
+    B = isapprox(b,0,atol=1e-15)
+    C = isapprox(c,0,atol=1e-15)
+    # possible infinite solutions    
+    if (A && B && C) 
+        return -1,0,0
+    # no solutions
+    elseif (A && B) || R < -1e-8
+        return 0,0,0
+    # equation is linear
+    elseif isapprox(a,0,atol=1e-15)
+        return 1, -c/b, -c/b
+    # two roots are equal
+    elseif 1e-8 <= R < 1e-15
+        x = -b/(2*a)
+        return 1,x,x
+    # general case
+    else
+        v = sqrt(R)
+        return 2, (-b - v)/(2*a), (-b + v)/(2*a)
+    end
+end
+
+
 """
 linearIndependence(p::Point,q::Point)::Bool
 
@@ -196,27 +259,27 @@ Returns coeficients `d,r,c` such that the surface of revolution made by rotating
 For more information, check [this math SO post](https://math.stackexchange.com/questions/4082142/intersection-between-rotating-3d-line-and-3d-line)
 """
 function case1SurfaceCoefficients(q1::Point,q2::Point,vq::Point)::Tuple{T,T,T}
-    aux_1 = sqr(1/vq.z)
+    aux_1 = pow2(1/vq.z)
     aux_2 = 1/vq.z
-    aux_3 = (sqr(vq.x) + sqr(vq.y))
+    aux_3 = (pow2(vq.x) + pow2(vq.y))
     aux_4 = (q1.x*q2.z - q2.x*q1.z)
     aux_5 = (q1.y*q2.z - q2.y*q1.z)
     c = aux_1*aux_3
     r = aux_1*(vq.x*aux_4 + vq.y*aux_5)
-    d = aux_1*(sqr(aux_4) + sqr(aux_5))
+    d = aux_1*(pow2(aux_4) + pow2(aux_5))
     return c,r,d
 end
 
 #=
 function case1surfaceCoefficientsAldo(q1::Point,q2::Point)::Tuple{T,T,T}
     vq = q2-q1
-    aux_1 = sqr(1/vq.z)
+    aux_1 = pow2(1/vq.z)
     aux_2 = 1/vq.z
-    aux_3 = (sqr(vq.x) + sqr(vq.y))
+    aux_3 = (pow2(vq.x) + pow2(vq.y))
     aux_4 = (q1.x*vq.x + q1.y*vq.y)
     c = aux_3*aux_1
     r = aux_2*aux_4 - q1.z*c
-    d = q1.z*(q1.z*aux_1*aux_3 - 2*aux_4*aux_2) + sqr(q1.x) + sqr(q1.y)
+    d = q1.z*(q1.z*aux_1*aux_3 - 2*aux_4*aux_2) + pow2(q1.x) + pow2(q1.y)
     return c,r,d
 end
 
@@ -224,14 +287,14 @@ end
 function surfaceQuadraticEquation(c::Real,r::Real,d::Real,p1::Point,p2::Point)
     vp = p2-p1
     S = p1.x*vp.x + p1.y*vp.y - (r+c*p1.z)*vp.z
-    D = c*sqr(vp.z) - sqr(vp.x) - sqr(vp.y)
+    D = c*pow2(vp.z) - pow2(vp.x) - pow2(vp.y)
     aux_1 = p1.x*p2.z - p2.x*p1.z
     aux_2 = p1.y*p2.z - p2.y*p1.z
     aux_3 = p1.x*p2.y - p2.x*p1.y
-    R = c*(sqr(aux_1) + sqr(aux_2) - d*sqr(vp.z)) 
-    R += sqr(r*vp.z) - sqr(aux_3) 
+    R = c*(pow2(aux_1) + pow2(aux_2) - d*pow2(vp.z)) 
+    R += pow2(r*vp.z) - pow2(aux_3) 
     R += 2*r*(-aux_1*vp.z-aux_2*vp.y)
-    R += d*(sqr(vp.x) + sqr(vp.y))
+    R += d*(pow2(vp.x) + pow2(vp.y))
     if R < 0 || D == 0
         return false,0,0
     elseif R == 0
@@ -243,6 +306,8 @@ end
 =#
 
 
+
+
 """
 function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
 
@@ -252,22 +317,52 @@ It returns `a,r1,r2` where `a`is an Int8 representing the number of roots, `r` t
 """
 function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
     cp = cross(p1,p2)
+    a = pow2(vp.x) +  pow2(vp.y) - c*pow2(vp.z)
+    b = 2*(p1.x*vp.x + p1.y*vp.y - vp.z*(c*p1.z + r))
+    c = pow2(p1.x) + pow2(p1.y) - c*pow2(p1.z) - 2*r*p1.z - d
+    return quadraticEquationRoots(a,b,c)
+end
+
+
+"""
+function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+
+Given a revolution surface described by ``r^2(z) = c z^2 + 2 r z + d``, it returns the roots ``t`` of the equation arising for substituing ``x^2(t) + y^2(t)= r^2(z(t))``.
+
+It returns `a,r1,r2` where `a`is an Int8 representing the number of roots, `r` the first root and `r2`. It returns `-1,0,0` when the equation is poorly defined due to an infinite number of roots.
+
+It computes the coefficientes of the equation using a simplified form obtained from `https://math.stackexchange.com/questions/4082142/intersection-between-rotating-3d-line-and-3d-line/`
+"""
+function case1SurfaceQuadricRoots2(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+    cp = cross(p1,p2)
     S = p1.x*vp.x + p1.y*vp.y - (r+c*p1.z)*vp.z
-    D = c*sqr(vp.z) - sqr(vp.x) - sqr(vp.y)
-    R = c*(sqr(cp.y) + sqr(cp.x) - d*sqr(vp.z)) 
-    R += sqr(r*vp.z) - sqr(cp.z) 
+    D = c*pow2(vp.z) - pow2(vp.x) - pow2(vp.y)
+    R = c*(pow2(cp.y) + pow2(cp.x) - d*pow2(vp.z)) 
+    R += pow2(r*vp.z) - pow2(cp.z) 
     R += 2*r*(cp.y*vp.x - cp.x*vp.y)
-    R += d*(sqr(vp.x) + sqr(vp.y))
-    if isapprox(D,0,atol=1e-15) && isapprox(R,0,atol=1e-15) && isapprox(S,0,atol=1e-15)
+    R += d*(pow2(vp.x) + pow2(vp.y))
+    A = isapprox(D,0,atol=1e-15)
+    B = isapprox(R,0,atol=1e-15)
+    C = isapprox(S,0,atol=1e-15) 
+    # infinite solutions
+    if A && B && C 
         return -1,0,0
-    elseif R < -1e-8 || isapprox(D,0,atol=1e-15)
-        return 0, 0, 0
+    #  no real roots
+    elseif (A && B) || R < 1e-8
+        return 0,0,0
+    # equation is linear and only with one root
+    elseif A
+        n = pow2(p1.x) + pow2(p1.y) - c*pow2(p1.z) - 2*r*p1.z - d
+        return 1, -n/sqrt(R),0
+    # two roots are equal
     elseif -1e-8 <= R < 1e-15
         return 1, S/D, S/D
+    # two different roots
     else
         return 2, (S - sqrt(R))/D, (S + sqrt(R))/D
     end
 end
+
 
 """
 phiParameter(xp::T,yp::T,xq::T,yq::T)::T
@@ -320,7 +415,7 @@ function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,v
         inp = p1 + t*vp
         debug && println(inp)
         debug && println("$a,$b")
-        s,phi = getParameters(t,p1,p2,vp,q1,q2,vq)
+        debug && (s,phi = getParameters(t,p1,p2,vp,q1,q2,vq))
         debug && println(s)
         debug && println(phi)
         # check intersection only if z value is in interval
@@ -347,12 +442,14 @@ function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
     debug && println(roots)
     # special case for when the intersection happens in an infinite amount of values
     if roots[1] == -1
-        rot_ang = xyIangle(vq,vp)
-        mat = zrotation(rot_ang)
-        q1prime = mat*q1
-        q2prime = mat*q2
-        val = segmentOverlap(p1,p2,q1prime,q2prime)
-        return val,e0,e0
+        phi = xyIangle(vq,vp)
+        if angleTest(phi,theta)
+            mat = zrotation(phi)
+            q1prime = mat*q1
+            q2prime = mat*q2
+            val = segmentOverlap(p1,p2,q1prime,q2prime)
+            return val,e0,e0
+        end
     elseif roots[1] == 1
         int = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta,debug=debug)
         return int[1],int[2],e0
@@ -366,50 +463,6 @@ function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
     end
 end
 
-"""
-intervalOverlap(a::Real,b::Real,c::Real,d::Real)::Bool
-
-Function to check wheter the intervals of real numbers between a,b and c,d have an intersection.
-"""
-function intervalOverlap(a::Real,b::Real,c::Real,d::Real)::Bool
-    a,b = minmax(a,b)
-    c,d = minmax(c,d)
-    return (b >= c) && (d >= a)
-end
-
-
-function segmentOverlap(p1::Point,p2::Point,q1::Point,q2::Point)::Bool
-    xtest = intervalOverlap(p1.x,p2.x,q1.x,q1.x)
-    ytest = intervalOverlap(p1.y,p2.y,q1.y,q1.y)
-    ztest = intervalOverlap(p1.z,p2.z,q1.z,q1.z)
-    # segment overlaps if all their x, y and z intervals overlap
-    return xtest && ytest && ztest
-end
-
-
-
-
-### Case 2
-
-
-"""
-quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
-
-Returns a triple `n,r1,r2` containing the solutions of equation ``a x^2 + bx + c = 0``. `n` is the number of different roots that exist of the equation.
-"""
-function quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
-    R = sqr(b) - 4*a*c
-    if isapprox(a,0,atol=1e-15) || R < 0
-        return 0,0,0
-    elseif isapprox(R,0,atol=1e-15)
-        x = -b/(2*a)
-        return 1,x,x
-    else
-        v = sqrt(R)
-        return 2, (-b - v)/(2*a), (-b + v)/(2*a)
-    end
-end
-
 
 """
 case2coefficients(inp::Point,q1::Point,q2::Point,vq::Point)::Tuple{T,T,T}
@@ -417,9 +470,9 @@ case2coefficients(inp::Point,q1::Point,q2::Point,vq::Point)::Tuple{T,T,T}
 Returns the coefficients `a,b,c` of the quadric equation arising from the substitution of point ``x^2(s) + y^2(s) = inp.x^2 + inp.y^2``
 """
 function case2coefficients(inp::Point,q1::Point,q2::Point,vq::Point)::Tuple{T,T,T}
-    a = sqr(vq.x) + sqr(vq.y)
+    a = pow2(vq.x) + pow2(vq.y)
     b = q1.x*vq.x + q1.y*vq.y
-    c = sqr(q1.x) + sqr(q1.y) - sqr(inp.x) - sqr(inp.y)
+    c = pow2(q1.x) + pow2(q1.y) - pow2(inp.x) - pow2(inp.y)
     return a,b,c
 end
 
@@ -529,9 +582,9 @@ segmentCircleIntersection(p1::Point,p2::Point,vp::Point,r::Point)
 Finds the intersection between an XY-contained segment `p1-p2` and a circle of radius `r` centered at the origin.
 """
 function segmentCircleIntersection(p1::Point,p2::Point,vp::Point,r::Real)::Tuple{T,T,T}
-    a = sqr(vp.x) + sqr(vp.y)
+    a = pow2(vp.x) + pow2(vp.y)
     b = 2*(p1.x*vp.x + p1.y*vp.y)
-    c = sqr(p1.x) + sqr(p1.y) - sqr(r)
+    c = pow2(p1.x) + pow2(p1.y) - pow2(r)
     roots = quadraticEquationRoots(a,b,c)
     if 0 <= roots[2] <= 1 && 0 <= roots[3] <= 1
         return 2,roots[2],roots[3]
@@ -745,9 +798,9 @@ function checkPossibleEquality(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
         q2 = mat*q2
         vq = q2 - q1
         a1,b1,c1 = vq.x, -vq.y, vq.y*q1.x - vq.x*q1.y
-        nor1 = sqrt(sqr(a1) + sqr(b1) + sqr(c1))
+        nor1 = sqrt(pow2(a1) + pow2(b1) + pow2(c1))
         a2,b2,c2 = vp.x, -vp.y, vp.y*p1.x - vp.x*p1.y
-        nor2 = sqrt(sqr(a2) + sqr(b2) + sqr(c2))
+        nor2 = sqrt(pow2(a2) + pow2(b2) + pow2(c2))
         return isapprox(c1/nor1,c2/nor2,atol=1e-15), phi
     end
     return false, 0
@@ -948,9 +1001,9 @@ function experiment3(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point
         
         b3x,b3y,m3x,m3y = bsms(q1,q2,vq,phi)
         a1,b1,c1 = m3x, -m3y, m3y*b3x - m3x*b3y
-        nor1 = sqrt(sqr(a1) + sqr(b1) + sqr(c1))
+        nor1 = sqrt(pow2(a1) + pow2(b1) + pow2(c1))
         a2,b2,c2 = vp.x, -vp.y, vp.y*p1.x - vp.x*p1.y
-        nor2 = sqrt(sqr(a2) + sqr(b2) + sqr(c2))
+        nor2 = sqrt(pow2(a2) + pow2(b2) + pow2(c2))
         # check wheter lines become the same
         if isapprox(c1/nor1,c2/nor2,atol=1e-15)
             # to se if they intersect, it is enough to check wheter theyr x or w intervals overlap

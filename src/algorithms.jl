@@ -103,7 +103,7 @@ function demaineEnergy1(Q::AbstractChain)::T
     sum = 0
     for i in 1:n
         for j in i+2:(n+1)
-            sum += sqr(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
+            sum += 1/pow2(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
         end
     end
     return sum
@@ -114,10 +114,10 @@ function demaineEnergy2(Q::AbstractChain)::T
     sum = 0
     for i in 1:n
         for j in 1:(i-1)
-            sum += sqr(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
+            sum += 1/pow2(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
         end
         for j in (i+2):(n+1)
-            sum += sqr(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
+            sum += pow2(norm(Q[j]-Q[i])+ norm(Q[j]-Q[i+1]) -norm(Q[i]-Q[i+1]))
         end
     end
     return sum

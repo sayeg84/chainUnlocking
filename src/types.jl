@@ -15,7 +15,7 @@ const ey = Point(0.0,1.0,0.0)
 const ez = Point(0.0,0.0,1.0)
 const e0 = Point(0.0,0.0,0.0)
 
-function sqr(x::Number)::Number
+function pow2(x::Number)::Number
     return x*x
 end
 
@@ -74,7 +74,7 @@ end
 import LinearAlgebra.norm
 
 function norm(p::Point)::T
-    return sqrt(sqr(p.x) + sqr(p.y) + sqr(p.z))
+    return sqrt(pow2(p.x) + pow2(p.y) + pow2(p.z))
 end
 
 function snorm(q::Point;s::T=2.0)::T
@@ -247,9 +247,9 @@ function rotation(theta::Real,u::Point)::Matrix
     a = cos(theta)
     b = sin(theta)
     c = 1-a
-    return Matrix(a + sqr(u.x)*c, u.x*u.y*c - u.z*b, u.x*u.z*c + u.y*b,
-    u.y*u.x*c + u.z*b, a + sqr(u.y)*c, u.y*u.z*c - u.x*b,
-    u.z*u.x*c - u.y*b, u.z*u.y*c + u.x*b, a + sqr(u.z)*c)
+    return Matrix(a + pow2(u.x)*c, u.x*u.y*c - u.z*b, u.x*u.z*c + u.y*b,
+    u.y*u.x*c + u.z*b, a + pow2(u.y)*c, u.y*u.z*c - u.x*b,
+    u.z*u.x*c - u.y*b, u.z*u.y*c + u.x*b, a + pow2(u.z)*c)
 end
 
 
@@ -320,11 +320,11 @@ function dihedralSO(a::Point,b::Point,c::Point,d::Point)::T
 end
 
 function distance(p::Tuple{<:Real,<:Real},q::Tuple{<:Real,<:Real})
-    return sqrt(sqr(p[1]-q[1]) + sqr(p[2]-q[2]))
+    return sqrt(pow2(p[1]-q[1]) + pow2(p[2]-q[2]))
 end
 
 function distance(p::Tuple{<:Real,<:Real,<:Real},q::Tuple{<:Real,<:Real,<:Real})
-    return sqrt(sqr(p[1]-q[1]) + sqr(p[2]-q[2]) + sqr(p[3]-q[3]))
+    return sqrt(pow2(p[1]-q[1]) + pow2(p[2]-q[2]) + pow2(p[3]-q[3]))
 end
 
 abstract type AbstractChain end
@@ -462,7 +462,7 @@ function simpleRmsd(P::AbstractChain,Q::AbstractChain)::T
     end
     dist = 0
     for i in 1:n+1
-        dist += sqr(distance(P[i],Q[i]))
+        dist += pow2(distance(P[i],Q[i]))
     end
     return sqrt(dist/(n+1))
 end
@@ -484,7 +484,7 @@ function overlapedRmsd(P::AbstractChain,Q::AbstractChain)::T
     end
     dist = 0
     for i in 1:n+1
-        dist += sqr(distance(S[i],Q[i]))
+        dist += pow2(distance(S[i],Q[i]))
     end
     return sqrt(dist/(n+1))
 end
