@@ -54,7 +54,7 @@ function quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
     elseif isapprox(a,0,atol=1e-15)
         return 1, -c/b, -c/b
     # two roots are equal
-    elseif 1e-8 <= R < 1e-15
+    elseif -1e-8 <= R < 1e-15
         x = -b/(2*a)
         return 1,x,x
     # general case
@@ -634,7 +634,7 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         return true
     # only test for intersection if points are in the same interval        
     elseif isapprox(p1.z,q1.z,atol=1e-15)
-        println("primera pasada")
+        debug && println("primera pasada")
         for q in (q1,q2)
             r = norm(q)
             roots = segmentCircleIntersection(p1,p2,vp,r)
@@ -643,7 +643,7 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
                 return true
             end
         end
-        println("segunda pasada")
+        debug && println("segunda pasada")
         for p in (p1,p2)
             r = norm(p)
             roots = segmentCircleIntersection(q1,q2,vq,r)
