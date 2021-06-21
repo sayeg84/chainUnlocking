@@ -92,7 +92,6 @@ function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
     end
 end
 
-
 function squaredMaxSpan(Q::AbstractChain)::T
     v = Q[1] - Q[end]
     return -dot(v,v)

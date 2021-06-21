@@ -325,7 +325,7 @@ end
 
 
 """
-function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+function case1SurfaceQuadricRootsAlt(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
 
 Given a revolution surface described by ``r^2(z) = c z^2 + 2 r z + d``, it returns the roots ``t`` of the equation arising for substituing ``x^2(t) + y^2(t)= r^2(z(t))``.
 
@@ -333,7 +333,7 @@ It returns `a,r1,r2` where `a`is an Int8 representing the number of roots, `r` t
 
 It computes the coefficientes of the equation using a simplified form obtained from `https://math.stackexchange.com/questions/4082142/intersection-between-rotating-3d-line-and-3d-line/`
 """
-function case1SurfaceQuadricRoots2(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+function case1SurfaceQuadricRootsAlt(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
     cp = cross(p1,p2)
     S = p1.x*vp.x + p1.y*vp.y - (r+c*p1.z)*vp.z
     D = c*pow2(vp.z) - pow2(vp.x) - pow2(vp.y)
@@ -442,7 +442,11 @@ function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
     debug && println(roots)
     # special case for when the intersection happens in an infinite amount of values
     if roots[1] == -1
-        phi = xyIangle(vq,vp)
+        A = isapprox(vq.x,0,atol = 1e-5)
+        B = isapprox(vq.y,0,atol = 1e-5)
+        # cylinder and hyperboloid have angles defined in different ways
+        # cylinder angle of rotation 
+        phi =  A && B ? xyIangle(p1,q1) : xyIangle(vq,vp)
         if angleTest(phi,theta)
             mat = zrotation(phi)
             q1prime = mat*q1
