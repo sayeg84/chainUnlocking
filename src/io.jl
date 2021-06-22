@@ -63,6 +63,7 @@ function saveMetaParams(name::AbstractString,parsed_args)
     open(joinpath(name,"metaParams.csv"),"w+") do io
         write(io,"algorithm,$(parsed_args["algorithm"])\n")
         write(io,"minFunc,$(parsed_args["minFunc"])\n")
+        write(io,"chain,$(parsed_args["chain"])\n")
     end
 end
 
