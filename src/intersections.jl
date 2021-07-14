@@ -569,6 +569,17 @@ end
 
 
 """
+xyIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Bool
+
+Function to compute the points the XY-contained lines containing  segments `p1p2` and `q1q2` intersect
+"""
+function xyIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Tuple{Int8,T,T}
+    ts1 = twoxtwoLinearSystem(vp.x,-vq.x,q1.x-p1.x,vp.y,-vq.y,q1.y-p1.y)
+    return ts1
+end
+
+
+"""
 xySegmentIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Bool
 
 Function to check if XY-contained segments `p1p2` and `q1q2` intersect

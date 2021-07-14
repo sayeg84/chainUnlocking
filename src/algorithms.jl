@@ -123,6 +123,11 @@ function demaineEnergy2(Q::AbstractChain)::T
 end
 
 function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;max_iter::Integer=1000)
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
     diheds = zeros(Int8,max_iter)
     angles = zeros(T,max_iter)
     nq = length(Q)
@@ -159,7 +164,12 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
     return Q,angles[1:(c-1)],diheds[1:(c-1)]
 end
 
-function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1e-2,max_iter::Integer=1000)
+function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 0.5,max_iter::Integer=1000)
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
     diheds = zeros(Int8,max_iter)
     angles = zeros(T,max_iter)
     nq = length(Q)

@@ -83,29 +83,36 @@ function readSingleSimulation(name::AbstractString)
 end
 
 
-function readLSimulation(name::AbstractString)
+function readLSimulation(name::AbstractString; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
     metaParams = DelimitedFiles.readdlm(joinpath(name,"metaParams.csv"),',')
     metaParams = Dict(zip(metaParams[:,1],metaParams[:,2]))
-    println(metaParams["minFunc"])
+    verbose && println("minimizing function")
+    verbose && println(metaParams["minFunc"])
     minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
     simuls = [file for file in readdir(name)]
-    simuls = [file for file in simuls if file[end-4:end]=="Q.csv"]
+    # saving `_lastQ.csv` files values
+    simuls = [file for file in simuls if length(file)>7]
+    simuls = [file for file in simuls if file[end-8:end]=="lastQ.csv"]
     # number of total simulations
     lt = length(simuls)
     # filter independent interations
     simuls = [split(file,"_")[1] for file in simuls]
     simuls = unique(simuls)
     simuls = sort(simuls)
-    
     ts_mean = zeros(ln)
     ts_error = zeros(ln)
     minfs_mean = zeros(ln)
     minfs_error = zeros(ln)
-    
     tentativeIters = div(lt,ln,RoundUp)
+    verbose && println("Diferent simulations")
+    verbose && println(lt)
+    verbose && println("L vals")
+    verbose && println(ln)
+    verbose && println("Assumed iterations")
+    verbose && println(tentativeIters)
     ts_table = zeros(ln,tentativeIters)
     minfs_table = zeros(ln,tentativeIters)
     accepted_moves_table = zeros(ln,tentativeIters)
@@ -116,7 +123,7 @@ function readLSimulation(name::AbstractString)
         ts_sim = zeros(length(iterations))
         minfs_sim = zeros(length(iterations))
         for (j,iter) in enumerate(iterations)
-            println("reading simulation $(sim),$(iter)")
+            verbose && println("reading simulation $(sim),$(iter)")
             lastQ = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
             diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-indexes.csv")),',',Int16)
             diheds = reshape(diheds,length(diheds))
@@ -131,7 +138,7 @@ function readLSimulation(name::AbstractString)
         minfs_mean[i] = Statistics.mean(minfs_sim)
         minfs_error[i] = Statistics.std(minfs_sim)
     end
-    return ls,ts_mean,ts_error,minfs_mean,minfs_error, ts_table, minfs_table,accepted_moves_table
+    return ls, ts_mean, ts_error, minfs_mean, minfs_error, ts_table, minfs_table,accepted_moves_table
 end
 
 

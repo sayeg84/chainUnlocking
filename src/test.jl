@@ -304,6 +304,7 @@ function plotCircle!(c::Point,r::Real;lw::Real=1)
     plot!(xs,ys,lw=lw,aspect_ratio=1)
 end
 
+
 function plotLine!(p1::Point,p2::Point;lw::Real=1,label::String="")
     vp = p2-p1
     line = [p1+t*vp for t in LinRange(0,1,101)]
@@ -316,18 +317,26 @@ function plotLine!(p1::Point,p2::Point;lw::Real=1,label::String="")
     end
 end
 
-function plotRotation!(q1::Point,q2::Point,theta::Real)
+function plotRotation!(q1::Point,q2::Point,theta::Real;lw::Real=1,alpha=0.3)
     vq = q2-q1
     angles = LinRange(0,theta,200)
     ts = LinRange(0,1,3)
     surf = [zrotation(a)*(q1 + t*vq) for a in angles for t in ts ]
     surf = [toArray(p) for p in surf]
     surf = hcat(surf...)
-    plot!(surf[1,:],surf[2,:],lw=1,color="black",alpha=0.5)
+    plot!(surf[1,:],surf[2,:],lw=1,color="black",alpha=alpha)
     r1,d1,r2,d2 = closestAndFurthestPointToOrigin(q1,q2,vq)
     scatter!([r1.x,r2.x],[r1.y,r2.y])
-    plotCircle!(e0,d1)
-    plotCircle!(e0,d2)
+    plotCircle!(e0,d1,lw=lw)
+    plotCircle!(e0,d2,lw=lw)
+end
+
+function plotPointRotation!(p::Point,theta::Real;lw::Real=1,color="black",alpha=1)
+    angles = LinRange(0,theta,200)
+    surf = [zrotation(a)*(p) for a in angles]
+    surf = [toArray(p) for p in surf]
+    surf = hcat(surf...)
+    plot!(surf[1,:],surf[2,:],lw=lw,color=color,alpha=alpha)
 end
 
 function plotChain!(P::AbstractChain,c,lw=2)

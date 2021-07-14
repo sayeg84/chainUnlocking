@@ -2,5 +2,8 @@ extra/.
 ipynb_checkpoints/*
 outputs/*
 *.png
+*.mp4
+*.gif
+*.pdf
 *.zip
 logs*
