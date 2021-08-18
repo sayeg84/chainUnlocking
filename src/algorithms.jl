@@ -122,6 +122,36 @@ function demaineEnergy2(Q::AbstractChain)::T
     return sum
 end
 
+function tangentPointKernel(tang::Point,p::Point,q::Point;alpha::Real=2,beta=1)::T
+    dir = p-q
+    return norm(cross(tang,dir))^alpha/norm(dir)^beta
+end
+
+function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer)::T
+    sum = 0.0
+    tang = unitVector(Q[i+1] - Q[i])
+    sum += tangentPointKernel(Q[i],Q[j],tang)
+    sum += tangentPointKernel(Q[i],Q[j+1],tang)
+    sum += tangentPointKernel(Q[i+1],Q[j],tang)
+    sum += tangentPointKernel(Q[i+1],Q[j+1],tang)
+    return sum/4
+end
+
+function tangentEnergy(Q::AbstractChain)::T
+    n = length(Q)
+    sum = 0
+    for i in 1:n
+        for j in 1:(i-2)
+            sum += tangentPointDiscrete(Q,i,j)
+        end
+        for j in (i+2):n
+            sum += tangentPointDiscrete(Q,i,j)
+        end
+    end
+    return sum
+end
+
+
 function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;max_iter::Integer=1000)
     # preprocessing
     if minFunc == distToFlat
@@ -164,7 +194,7 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
     return Q,angles[1:(c-1)],diheds[1:(c-1)]
 end
 
-function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 0.5,max_iter::Integer=1000)
+function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 2,max_iter::Integer=1000)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
