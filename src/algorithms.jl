@@ -122,7 +122,7 @@ function demaineEnergy2(Q::AbstractChain)::T
     return sum
 end
 
-function tangentPointKernel(tang::Point,p::Point,q::Point;alpha::Real=2,beta=1)::T
+function tangentPointKernel(tang::Point,p::Point,q::Point;alpha::Real=2,beta=4.5)::T
     dir = p-q
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
@@ -151,8 +151,8 @@ function tangentEnergy(Q::AbstractChain)::T
     return sum
 end
 
-
-function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;max_iter::Integer=1000)
+# `temp_init` argument is useless and only put for compatibility reasons
+function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=3,max_iter::Integer=1000)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -161,29 +161,16 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
     diheds = zeros(Int8,max_iter)
     angles = zeros(T,max_iter)
     nq = length(Q)
-    #println("bien aca")
-    #println("intermedio")
     d = minFunc(Q)
-    #println("mal aca")
     c = 1
     while d > tolerance && c <= max_iter
         theta = rand()*(thetamax-thetamin) + thetamin
         dihed = rand(1:(nq-2))
-        #println(c)
-        #println()
-        #println(i)
-        #println(Q)
-        #println(linkLengths(Q))
         newQ = moveBeforeDihedral(Q,dihed)
-        #println(newQ)
-        #println(linkLengths(newQ))
         inter_flag = checkRotationIntersection(newQ,dihed,theta)
         newQ = dihedralRotate(newQ,dihed,theta)
         dnew = minFunc(newQ)
-        #println(c)
-        #println(inter_flag)
-        #println()
-        if !inter_flag #&& dnew < d
+        if !inter_flag && dnew < d
             Q = newQ
             d = dnew
             diheds[c] = dihed
@@ -194,7 +181,7 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
     return Q,angles[1:(c-1)],diheds[1:(c-1)]
 end
 
-function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 2,max_iter::Integer=1000)
+function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 3,max_iter::Integer=1000)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -202,6 +189,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
     end
     diheds = zeros(Int8,max_iter)
     angles = zeros(T,max_iter)
+    minvals = zeros(T,max_iter)
     nq = length(Q)
     #println("bien aca")
     temp = temp_init
@@ -231,6 +219,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
             d = dnew
             diheds[c] = dihed
             angles[c] = theta
+            minvals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
             p = (-dnew + d)/temp
@@ -239,12 +228,17 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
                 d = dnew
                 diheds[c] = dihed
                 angles[c] = theta
+                minvals[c] = dnew
+            else
+                minvals[c] = d
             end
+        else
+            minvals[c] = d
         end
         c += 1
         temp -= delta_temp
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)]
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
 end
 
 

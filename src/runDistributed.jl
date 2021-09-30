@@ -46,6 +46,10 @@ function parse_commandline()
             help = "maximum number of iterations"
             arg_type = Int
             default = 10_000 
+        "--temp_init"
+            help = "Initial temperature for simulated annelaing"
+            arg_type = Float64
+            default = 4.0
         "--tolerance"
             help = "Tolerance for minimum value of function"
             arg_type = Float64
@@ -84,7 +88,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         for j in 1:iter
             Q = chainFunc(ls[i])
             #println("creacion ok")
-            lastQ, angles, diheds = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,max_iter=parsed_args["max_iter"])
+            lastQ, angles, diheds, minvals = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,temp_init=parsed_args["temp_init"],max_iter=parsed_args["max_iter"])
             nwork = myid()-1
             if nwork==1
                 per = round(((i-1)*iter+(j-1))*parsed_args["processes"]*100/(parsed_args["indep_simuls"]*n); digits= 2)
@@ -99,7 +103,10 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
                 n1 = lpad(i,n1zeros,'0')
                 n2zeros = Int(ceil(log10(iter+1)))
                 n2 = lpad(j,n2zeros,"0")
-                saveSimulation(joinpath(savename,string(n1,"_",n2,)),Q,lastQ,angles,diheds,saveTrajec=false)
+                saveSimulation(joinpath(savename,string(n1,"_",n2)),Q,lastQ,angles,diheds,saveTrajec=false)
+                open(joinpath(savename,string(n1,"_",n2,"_minvals")),"w+") do io
+                    DelimitedFiles.writedlm(io,minvals,',')
+                end
             end
             temp_ts[j] = length(diheds)
 	    #println(temp_ts[j])
