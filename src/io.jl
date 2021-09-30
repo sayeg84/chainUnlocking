@@ -62,6 +62,7 @@ end
 function saveMetaParams(name::AbstractString,parsed_args)
     open(joinpath(name,"metaParams.csv"),"w+") do io
         write(io,"algorithm,$(parsed_args["algorithm"])\n")
+        write(io,"temp_init,$(parsed_args["temp_init"])\n")
         write(io,"minFunc,$(parsed_args["minFunc"])\n")
         write(io,"chain,$(parsed_args["chain"])\n")
     end
@@ -83,12 +84,19 @@ function readSingleSimulation(name::AbstractString)
 end
 
 
+# `name` must be name of folder
+function readMetaParams(name::AbstractString)
+    metaParams = DelimitedFiles.readdlm(joinpath(name,"metaParams.csv"),',')
+    metaParams = Dict(zip(metaParams[:,1],metaParams[:,2]))
+    return metaParams
+end
+
+
 function readLSimulation(name::AbstractString; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
-    metaParams = DelimitedFiles.readdlm(joinpath(name,"metaParams.csv"),',')
-    metaParams = Dict(zip(metaParams[:,1],metaParams[:,2]))
+    metaParams = readMetaParams(name)
     verbose && println("minimizing function")
     verbose && println(metaParams["minFunc"])
     minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
@@ -140,7 +148,6 @@ function readLSimulation(name::AbstractString; verbose::Bool=true)
     end
     return ls, ts_mean, ts_error, minfs_mean, minfs_error, ts_table, minfs_table,accepted_moves_table
 end
-
 
 
 
