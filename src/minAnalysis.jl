@@ -2,23 +2,6 @@ include("io.jl")
 
 using Plots
 
-function funcValues(Q,diheds,angles,minFunc,lastQ)
-    newQ = copy(Q)
-    vals = zeros(T,length(angles))
-    vals[1] = minFunc(newQ)
-    for i in 1:(length(angles)-1)
-        if diheds[i]!= 0
-            newQ = moveBeforeDihedral(newQ,diheds[i])
-            dihedralRotate!(newQ,diheds[i],angles[i])
-        end
-        vals[i+1] = minFunc(newQ)
-    end
-    display(toArray(newQ))
-    println()
-    display(toArray(lastQ))
-    println()
-    return vals
-end
 
 function makePlot(vals,name)
     fig = Plots.plot(size=(1000,400))
