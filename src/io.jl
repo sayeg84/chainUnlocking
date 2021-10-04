@@ -9,6 +9,25 @@ function saveChain(name::AbstractString,P::AbstractChain)
     end
 end
 
+function funcValues(Q,diheds,angles,minFunc,lastQ)
+    newQ = copy(Q)
+    funcvals = zeros(T,length(angles))
+    funcvals[1] = minFunc(newQ)
+    for i in 1:(length(angles)-1)
+        if diheds[i]!= 0
+            newQ = moveBeforeDihedral(newQ,diheds[i])
+            dihedralRotate!(newQ,diheds[i],angles[i])
+        end
+        funcvals[i+1] = minFunc(newQ)
+    end
+    #display(toArray(newQ))
+    #println()
+    #display(toArray(lastQ))
+    #println()
+    return funcvals
+end
+
+
 function saveTrajectory(name,Q::AbstractChain,angles,diheds)
     ns = length(Q)+1
     nzeros = Int(ceil(log10(ns+1)))
@@ -92,7 +111,7 @@ function readMetaParams(name::AbstractString)
 end
 
 
-function readLSimulation(name::AbstractString; verbose::Bool=true)
+function readLSimulation(name::AbstractString,burnout::Real; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
@@ -100,7 +119,7 @@ function readLSimulation(name::AbstractString; verbose::Bool=true)
     verbose && println("minimizing function")
     verbose && println(metaParams["minFunc"])
     minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
-    simuls = [file for file in readdir(name)]
+    simuls  = [file for file in readdir(name)]
     # saving `_lastQ.csv` files values
     simuls = [file for file in simuls if length(file)>7]
     simuls = [file for file in simuls if file[end-8:end]=="lastQ.csv"]
@@ -110,9 +129,9 @@ function readLSimulation(name::AbstractString; verbose::Bool=true)
     simuls = [split(file,"_")[1] for file in simuls]
     simuls = unique(simuls)
     simuls = sort(simuls)
-    ts_mean = zeros(ln)
-    ts_error = zeros(ln)
-    minfs_mean = zeros(ln)
+    ts_mean     = zeros(ln)
+    ts_error    = zeros(ln)
+    minfs_mean  = zeros(ln)
     minfs_error = zeros(ln)
     tentativeIters = div(lt,ln,RoundUp)
     verbose && println("Diferent simulations")
@@ -121,24 +140,35 @@ function readLSimulation(name::AbstractString; verbose::Bool=true)
     verbose && println(ln)
     verbose && println("Assumed iterations")
     verbose && println(tentativeIters)
-    ts_table = zeros(ln,tentativeIters)
-    minfs_table = zeros(ln,tentativeIters)
+
+    ts_table             = zeros(ln,tentativeIters)
+    minfs_table          = zeros(ln,tentativeIters)
     accepted_moves_table = zeros(ln,tentativeIters)
+
     for (i,sim) in enumerate(simuls)
+        
         iterations = [file for file in readdir(name) if split(file,"_")[1]==sim]
         iterations = [split(file,"_")[2] for file in iterations]
         iterations = unique(iterations)
-        ts_sim = zeros(length(iterations))
-        minfs_sim = zeros(length(iterations))
+        ts_sim     = zeros(length(iterations))
+        minfs_sim  = zeros(length(iterations))
+
         for (j,iter) in enumerate(iterations)
             verbose && println("reading simulation $(sim),$(iter)")
-            lastQ = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
+            lastQ  = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
             diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-indexes.csv")),',',Int16)
             diheds = reshape(diheds,length(diheds))
-            ts_sim[j] = length(diheds)
-            minfs_sim[j] = minFunc(lastQ)
-            ts_table[i,j] = length(diheds)
-            minfs_table[i,j] = minFunc(lastQ)
+            ts_sim[j]        = length(diheds)
+            ts_table[i,j]    = length(diheds)
+            if burnout < 1
+                minvals = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_minvals")),',',T)
+                ncut    = Int(ceil(burnout*length(diheds)))
+                minfs_sim[j]     = Statistics.mean(minvals[ncut:end])
+                minfs_table[i,j] = Statistics.mean(minvals[ncut:end])
+            else
+                minfs_sim[j]     = minFunc(lastQ)
+                minfs_table[i,j] = minFunc(lastQ)
+            end
             accepted_moves_table[i,j] = length([k for k in diheds if k!=0])
         end
         ts_mean[i] = Statistics.mean(ts_sim)

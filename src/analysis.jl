@@ -10,6 +10,10 @@ function parse_commandline()
             help = "Folder to save the simulations"
             arg_type = String
             required = true
+        "--burnout"
+            help = "Fraction of burnout values. Value of 1 saves only the last one"
+            arg_type = Float64
+            default  = 1.0
     end
     return parse_args(s)
 end
@@ -17,7 +21,7 @@ end
 const parsed_args = parse_commandline()
 
 function main()    
-    ls,ts_mean,ts_error,minfs_mean,minfs_error,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"])
+    ls,ts_mean,ts_error,minfs_mean,minfs_error,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"])
     println("saving results")
     open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
