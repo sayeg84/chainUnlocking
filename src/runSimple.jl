@@ -1,64 +1,5 @@
-using  ArgParse
+include("argumentParsing.jl")
 include("io.jl")
-
-
-function parse_commandline()
-    s = ArgParseSettings()
-    @add_arg_table s begin
-        "--algorithm"
-            help = "Algorithm to make simulation"
-            arg_type = String
-            default = "localSearchRandom"
-        "--minFunc"
-            help = "Minimizing function"
-            arg_type = String
-            default = "distToFlat"
-        "--chain"
-            help = "Chain to simulate"
-            arg_type = String
-            default = "knittingNeedle"
-        "--path"
-            help = "Folder to save the simulations"
-            arg_type = String
-            required = true
-        "--indep_simuls"
-            help = "Number of simulations per l value"
-            arg_type = Int
-            default = 4
-        "--processes"
-            help = "Parallel processes to repart the simulations"
-            arg_type = Int
-            default = 4
-        "--lmin"
-            help = "minimum value for l"
-            arg_type = Float64
-            default = 1.4
-        "--lmax"
-            help = "maximum value for l"
-            arg_type = Float64
-            default = 1.42
-        "--lvals"
-            help = "Values for the L interval"
-            arg_type = Int
-            default = 12
-        "--log_l"
-            help = "flag to tell if logarithmic space must be filled for the l Values"
-            action = :store_true
-        "--max_iter"
-            help = "maximum number of iterations"
-            arg_type = Int
-            default = 10_000 
-        "--tolerance"
-            help = "Tolerance for minimum value of function"
-            arg_type = Float64
-            default = 1e-2
-        
-    end
-    return parse_args(s)
-end
-
-
-
 
 function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;parsed_args,savename="")
     n = length(ls)
@@ -75,7 +16,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         for j in 1:iter
             Q = chainFunc(ls[i])
             #println("creacion ok")
-            lastQ, angles, diheds = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,max_iter=parsed_args["max_iter"])
+            lastQ, angles, diheds, minvals = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,temp_init=parsed_args["temp_init"],max_iter=parsed_args["max_iter"])
             per = round(((i-1)*iter+(j-1))*100/(parsed_args["indep_simuls"]*n); digits= 2)
             prog = "Progress: $(per) % "
             println()
