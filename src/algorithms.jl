@@ -122,7 +122,11 @@ function demaineEnergy2(Q::AbstractChain)::T
     return sum
 end
 
+<<<<<<< HEAD
 function tangentPointKernel(tang::Point,p::Point,q::Point;alpha::Real=2,beta=4.5)::T
+=======
+function tangentPointKernel(p::Point,q::Point,tang::Point;alpha::Real=3,beta=6)::T
+>>>>>>> 3c5376d... Corrected bug and used consistent notation
     dir = p-q
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
@@ -193,7 +197,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
     nq = length(Q)
     #println("bien aca")
     temp = temp_init*minFunc(Q)
-    delta_temp = (temp_init - 1e-6)/max_iter
+    delta_temp = (temp - 1e-6)/max_iter
     #println("intermedio")
     d = minFunc(Q)
     #println("mal aca")
