@@ -122,7 +122,7 @@ function demaineEnergy2(Q::AbstractChain)::T
     return sum
 end
 
-function tangentPointKernel(tang::Point,p::Point,q::Point;alpha::Real=3,beta=6)::T
+function tangentPointKernel(tang::Point,p::Point,q::Point;alpha::Real=2,beta=4.5)::T
     dir = p-q
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
