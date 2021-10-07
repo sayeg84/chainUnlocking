@@ -122,33 +122,37 @@ function demaineEnergy2(Q::AbstractChain)::T
     return sum
 end
 
-function tangentPointKernel(p::Point,q::Point,tang::Point;alpha::Real=2,beta=4.5)::T
+function tangentPointKernel(p::Point,q::Point,tang::Point,alpha::Real,beta::Real)::T
     dir = p-q
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
 
-function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer)::T
+function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer,alpha::Real,beta::Real)::T
     sum = 0.0
     tang = unitVector(Q[i+1] - Q[i])
-    sum += tangentPointKernel(Q[i],Q[j],tang)
-    sum += tangentPointKernel(Q[i],Q[j+1],tang)
-    sum += tangentPointKernel(Q[i+1],Q[j],tang)
-    sum += tangentPointKernel(Q[i+1],Q[j+1],tang)
+    sum += tangentPointKernel(Q[i],Q[j],tang,alpha,beta)
+    sum += tangentPointKernel(Q[i],Q[j+1],tang,alpha,beta)
+    sum += tangentPointKernel(Q[i+1],Q[j],tang,alpha,beta)
+    sum += tangentPointKernel(Q[i+1],Q[j+1],tang,alpha,beta)
     return sum/4
 end
 
-function tangentEnergy(Q::AbstractChain)::T
+function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)::T
     n = length(Q)
     sum = 0
     for i in 1:n
         for j in 1:(i-2)
-            sum += tangentPointDiscrete(Q,i,j)
+            sum += tangentPointDiscrete(Q,i,j,alpha,beta)
         end
         for j in (i+2):n
-            sum += tangentPointDiscrete(Q,i,j)
+            sum += tangentPointDiscrete(Q,i,j,alpha,beta)
         end
     end
     return sum
+end
+
+function tangentEnergyFrac(Q::AbstractChain)
+    return tangentEnergy(Q,alpha=2,beta=4.5)
 end
 
 # `temp_init` argument is useless and only put for compatibility reasons
@@ -178,10 +182,10 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
         end
         c += 1
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)]
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
 end
 
-function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000)
+function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -191,29 +195,29 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
     angles = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
-    #println("bien aca")
+    debug && println("bien aca")
     temp = temp_init*minFunc(Q)
     delta_temp = (temp - 1e-6)/max_iter
-    #println("intermedio")
+    debug && println("intermedio")
     d = minFunc(Q)
-    #println("mal aca")
+    debug && println("mal aca")
     c = 1
     while d > tolerance && c <= max_iter
         theta = rand()*(thetamax-thetamin) + thetamin
         dihed = rand(1:(nq-2))
-        #println(c)
-        #println()
-        #println(i)
-        #println(Q)
-        #println(linkLengths(Q))
+        debug && println(c)
+        debug && println()
+        debug && println(i)
+        debug && println(Q)
+        debug && println(linkLengths(Q))
         newQ = moveBeforeDihedral(Q,dihed)
-        #println(newQ)
-        #println(linkLengths(newQ))
+        debug && println(newQ)
+        debug && println(linkLengths(newQ))
         inter_flag = checkRotationIntersection(newQ,dihed,theta)
         newQ = dihedralRotate(newQ,dihed,theta)
         dnew = minFunc(newQ)
-        #println(c)
-        #println(inter_flag)
+        debug && println(c)
+        debug && println(inter_flag)
         if !inter_flag && dnew < d
             Q = newQ
             d = dnew

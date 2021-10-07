@@ -1,4 +1,6 @@
-using  ArgParse
+using ArgParse
+using Dates
+const date_str = Dates.format(Dates.now(),"YYYY-MM-dd HH:mm")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -18,7 +20,7 @@ function parse_commandline()
         "--path"
             help = "Folder to save the simulations"
             arg_type = String
-            required = true
+            default = joinpath("..","outputs",date_str)
         "--indep_simuls"
             help = "Number of simulations per l value"
             arg_type = Int
