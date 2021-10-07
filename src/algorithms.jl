@@ -155,8 +155,7 @@ function tangentEnergyFrac(Q::AbstractChain)
     return tangentEnergy(Q,alpha=2,beta=4.5)
 end
 
-# `temp_init` argument is useless and only put for compatibility reasons
-function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
+function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -164,6 +163,7 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
     end
     diheds = zeros(Int8,max_iter)
     angles = zeros(T,max_iter)
+    minvals = zeros(T,max_iter)
     nq = length(Q)
     d = minFunc(Q)
     c = 1
@@ -179,6 +179,43 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
             d = dnew
             diheds[c] = dihed
             angles[c] = theta
+            minvals[c] = dnew
+        else
+            minvals[c] = d
+        end
+        c += 1
+    end
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+end
+
+# `temp_init` argument is useless and only put for compatibility reasons
+function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
+    diheds = zeros(Int8,max_iter)
+    angles = zeros(T,max_iter)
+    minvals = zeros(T,max_iter)
+    nq = length(Q)
+    d = minFunc(Q)
+    c = 1
+    while d > tolerance && c <= max_iter
+        theta = rand()*(thetamax-thetamin) + thetamin
+        dihed = rand(1:(nq-2))
+        newQ = moveBeforeDihedral(Q,dihed)
+        inter_flag = checkRotationIntersection(newQ,dihed,theta)
+        newQ = dihedralRotate(newQ,dihed,theta)
+        dnew = minFunc(newQ)
+        if !inter_flag && dnew < d
+            Q = newQ
+            d = dnew
+            diheds[c] = dihed
+            angles[c] = theta
+            minvals[c] = dnew
+        else
+            minvals[c] = d
         end
         c += 1
     end
@@ -241,6 +278,64 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
         end
         c += 1
         temp -= delta_temp
+    end
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+end
+
+function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
+    diheds = zeros(Int8,max_iter)
+    angles = zeros(T,max_iter)
+    minvals = zeros(T,max_iter)
+    nq = length(Q)
+    debug && println("bien aca")
+    temp_range = range(temp_init*minFunc(Q),stop=1e-6,length=max_iter)
+    debug && println("intermedio")
+    d = minFunc(Q)
+    debug && println("mal aca")
+    c = 1
+    while d > tolerance && c <= max_iter
+        theta = rand()*(thetamax-thetamin) + thetamin
+        dihed = rand(1:(nq-2))
+        debug && println(c)
+        debug && println()
+        debug && println(i)
+        debug && println(Q)
+        debug && println(linkLengths(Q))
+        newQ = moveBeforeDihedral(Q,dihed)
+        debug && println(newQ)
+        debug && println(linkLengths(newQ))
+        inter_flag = checkRotationIntersection(newQ,dihed,theta)
+        newQ = dihedralRotate(newQ,dihed,theta)
+        dnew = minFunc(newQ)
+        debug && println(c)
+        debug && println(inter_flag)
+        if !inter_flag && dnew < d
+            Q = newQ
+            d = dnew
+            diheds[c] = dihed
+            angles[c] = theta
+            minvals[c] = dnew
+        elseif !inter_flag && dnew >= d
+            r = log(rand())
+            p = (-dnew + d)/temp_range[c]
+            if r < p
+                Q = newQ
+                d = dnew
+                diheds[c] = dihed
+                angles[c] = theta
+                minvals[c] = dnew
+            else
+                minvals[c] = d
+            end
+        else
+            minvals[c] = d
+        end
+        c += 1
     end
     return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
 end

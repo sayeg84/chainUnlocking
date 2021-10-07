@@ -69,7 +69,7 @@ function main()
         mkdir(parsed_args["path"])
     end
     if parsed_args["log_l"]
-        const exps = LinRange(log10(parsed_args["lmin"]),log10(parsed_args["lmax"]),parsed_args["lvals"])
+        exps = LinRange(log10(parsed_args["lmin"]),log10(parsed_args["lmax"]),parsed_args["lvals"])
         ls = [10^x for x in exps]
     else
         ls = LinRange(parsed_args["lmin"],parsed_args["lmax"],parsed_args["lvals"])
