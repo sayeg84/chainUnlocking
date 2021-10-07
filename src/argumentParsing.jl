@@ -1,6 +1,6 @@
 using ArgParse
 using Dates
-const date_str = Dates.format(Dates.now(),"YYYY-MM-dd HH:mm")
+const date_str = Dates.format(Dates.now(),"YYYY-mm-dd HH:MM")
 
 function parse_commandline()
     s = ArgParseSettings()

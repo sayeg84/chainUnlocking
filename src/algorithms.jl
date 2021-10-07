@@ -127,7 +127,8 @@ function tangentPointKernel(p::Point,q::Point,tang::Point,alpha::Real,beta::Real
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
 
-function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer,alpha::Real,beta::Real)::T
+function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer,
+                            alpha::Real,beta::Real)::T
     sum = 0.0
     tang = unitVector(Q[i+1] - Q[i])
     sum += tangentPointKernel(Q[i],Q[j],tang,alpha,beta)
@@ -155,7 +156,23 @@ function tangentEnergyFrac(Q::AbstractChain)
     return tangentEnergy(Q,alpha=2,beta=4.5)
 end
 
-function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
+function localRandomSearchStep(Q,newQ,inter_flag,c,minf_val,minf_newval,
+                               minvals,dihed,diheds,theta,angles)
+    if !inter_flag && minf_newval < minf_val
+        diheds[c] = dihed
+        angles[c] = theta
+        minvals[c] = minf_newval
+        return minf_newval, newQ
+    else
+        minvals[c] = minf_val
+        return minf_val, Q
+    end
+end
+
+function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,
+                             tolerance::Real,thetamax::Real,
+                             thetamin::Real,temp_init::Real,
+                             max_iter::Integer,advanceFunc!::Function)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -165,27 +182,27 @@ function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,tolerance::Real=1
     angles = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
-    d = minFunc(Q)
+    minf_val = minFunc(Q)
     c = 1
-    while d > tolerance && c <= max_iter
+    while minf_val > tolerance && c <= max_iter
         theta = rand()*(thetamax-thetamin) + thetamin
         dihed = rand(1:(nq-2))
         newQ = moveBeforeDihedral(Q,dihed)
         inter_flag = checkRotationIntersection(newQ,dihed,theta)
         newQ = dihedralRotate(newQ,dihed,theta)
-        dnew = minFunc(newQ)
-        if !inter_flag && dnew < d
-            Q = newQ
-            d = dnew
-            diheds[c] = dihed
-            angles[c] = theta
-            minvals[c] = dnew
-        else
-            minvals[c] = d
-        end
+        minf_newval = minFunc(newQ)
+        minf_val,Q = advanceFunc!(Q,newQ,inter_flag,c,minf_val,minf_newval,
+                                  minvals,dihed,diheds,theta,angles)
         c += 1
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
+end
+
+function localSearchRandom2(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
+    return basicSMetaheuristic(Q,minFunc,
+    tolerance,thetamax,
+    thetamin,temp_init,
+    max_iter,localRandomSearchStep)
 end
 
 # `temp_init` argument is useless and only put for compatibility reasons
@@ -219,7 +236,7 @@ function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-
         end
         c += 1
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
 end
 
 function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
