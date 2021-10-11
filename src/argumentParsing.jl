@@ -1,6 +1,6 @@
 using ArgParse
 using Dates
-const date_str = Dates.format(Dates.now(),"YYYY-mm-dd HH:MM")
+const date_str = Dates.format(Dates.now(),"YYYY-mm-dd_HH-MM")
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -44,6 +44,10 @@ function parse_commandline()
         "--log_l"
             help = "flag to tell if logarithmic space must be filled for the l Values"
             action = :store_true
+        "--max_angle"
+            help = "maximum angle for rotation"
+            arg_type = Float64
+            default = pi/40
         "--max_iter"
             help = "maximum number of iterations"
             arg_type = Int

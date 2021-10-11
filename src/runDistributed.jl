@@ -74,7 +74,7 @@ function main()
     else
         ls = LinRange(parsed_args["lmin"],parsed_args["lmax"],parsed_args["lvals"])
     end
-    ls,ts_mean,ts_error,minfs_mean,minfs_error = lsimulationPar(ls,parsed_args["indep_simuls"];savename=parsed_args["path"])
+    ls,ts_mean,ts_error,minfs_mean,minfs_error = lsimulationPar(ls,parsed_args["indep_simuls"],parsed_args["max_angle"],-parsed_args["max_angle"];savename=parsed_args["path"])
     open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
         write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
