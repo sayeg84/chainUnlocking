@@ -339,9 +339,9 @@ function plotPointRotation!(p::Point,theta::Real;lw::Real=1,color="black",alpha=
     plot!(surf[1,:],surf[2,:],lw=lw,color=color,alpha=alpha)
 end
 
-function plotChain!(P::AbstractChain,c,lw=2)
+function plotChain!(P::AbstractChain,c="red",lw=2)
     arr = toArray(P)
-    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=:darkrainbow,markersize=1)
+    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=  c,markersize=3    )
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
 end
 

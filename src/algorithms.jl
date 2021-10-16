@@ -97,6 +97,11 @@ function squaredMaxSpan(Q::AbstractChain)::T
     return -dot(v,v)
 end
 
+function fourKnotSpan(Q::AbstractChain)::T
+    v = Q[2] - Q[end-1]
+    return -dot(v,v)
+end
+
 function demaineEnergy1(Q::AbstractChain)::T
     n = length(Q)
     sum = 0
@@ -172,7 +177,8 @@ end
 function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,
                              tolerance::Real,thetamax::Real,
                              thetamin::Real,temp_init::Real,
-                             max_iter::Integer,advanceFunc!::Function)
+                             max_iter::Integer,
+                             advanceFunc!::Function)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -197,6 +203,8 @@ function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,
     end
     return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
 end
+
+
 
 function localSearchRandom2(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
     return basicSMetaheuristic(Q,minFunc,
@@ -298,6 +306,67 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
     end
     return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
 end
+
+function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
+    diheds = zeros(Int8,max_iter)
+    angles = zeros(T,max_iter)
+    minvals = zeros(T,max_iter)
+    nq = length(Q)
+    debug && println("bien aca")
+    temp = temp_init*minFunc(Q)
+    delta_temp = (temp - 1e-6)/max_iter
+    debug && println("intermedio")
+    d = minFunc(Q)
+    debug && println("mal aca")
+    c = 1
+    while d > tolerance && c <= max_iter
+        theta = rand()*(thetamax-thetamin) + thetamin
+        dihed = rand(1:(nq-2))
+        debug && println(c)
+        debug && println()
+        debug && println(i)
+        debug && println(Q)
+        debug && println(linkLengths(Q))
+        newQ = moveBeforeDihedral(Q,dihed)
+        debug && println(newQ)
+        debug && println(linkLengths(newQ))
+        inter_flag = checkRotationIntersection(newQ,dihed,theta)
+        newQ = dihedralRotate(newQ,dihed,theta)
+        dnew = minFunc(newQ)
+        debug && println(c)
+        debug && println(inter_flag)
+        if !inter_flag && dnew < d
+            Q = newQ
+            d = dnew
+            diheds[c] = dihed
+            angles[c] = theta
+            minvals[c] = dnew
+        elseif !inter_flag && dnew >= d
+            r = log(rand())
+            p = (-dnew + d)/temp
+            if r < p
+                Q = newQ
+                d = dnew
+                diheds[c] = dihed
+                angles[c] = theta
+                minvals[c] = dnew
+            else
+                minvals[c] = d
+            end
+        else
+            minvals[c] = d
+        end
+        c += 1
+        temp -= delta_temp
+    end
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+end
+
 
 function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
     # preprocessing
