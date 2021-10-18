@@ -304,7 +304,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
         c += 1
         temp -= delta_temp
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
 end
 
 function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
@@ -325,26 +325,28 @@ function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::
     debug && println("mal aca")
     c = 1
     while d > tolerance && c <= max_iter
-        theta = rand()*(thetamax-thetamin) + thetamin
-        dihed = rand(1:(nq-2))
+        
         debug && println(c)
         debug && println()
         debug && println(i)
         debug && println(Q)
         debug && println(linkLengths(Q))
-        newQ = moveBeforeDihedral(Q,dihed)
+        inter_flag = false
+        newQ = copy(Q)
+        for i in 1:(nq-2)
+            newQ = moveBeforeDihedral(newQ,i)
+            theta = rand()*(thetamax-thetamin) + thetamin
+            inter_flag = inter_flag || checkRotationIntersection(newQ,i,theta)
+            newQ = dihedralRotate(newQ,i,theta)
+        end
         debug && println(newQ)
         debug && println(linkLengths(newQ))
-        inter_flag = checkRotationIntersection(newQ,dihed,theta)
-        newQ = dihedralRotate(newQ,dihed,theta)
         dnew = minFunc(newQ)
         debug && println(c)
         debug && println(inter_flag)
         if !inter_flag && dnew < d
             Q = newQ
             d = dnew
-            diheds[c] = dihed
-            angles[c] = theta
             minvals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
@@ -352,8 +354,6 @@ function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::
             if r < p
                 Q = newQ
                 d = dnew
-                diheds[c] = dihed
-                angles[c] = theta
                 minvals[c] = dnew
             else
                 minvals[c] = d
@@ -364,7 +364,7 @@ function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::
         c += 1
         temp -= delta_temp
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
 end
 
 
