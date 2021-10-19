@@ -80,10 +80,12 @@ end
 
 function saveMetaParams(name::AbstractString,parsed_args)
     open(joinpath(name,"metaParams.csv"),"w+") do io
-        write(io,"algorithm,$(parsed_args["algorithm"])\n")
-        write(io,"temp_init,$(parsed_args["temp_init"])\n")
-        write(io,"minFunc,$(parsed_args["minFunc"])\n")
-        write(io,"chain,$(parsed_args["chain"])\n")
+        variables = ["chain","algorithm","minFunc","tolerance",
+                     "temp_init","max_iter","max_angle"]
+        for var in variables
+            str = string(var,",",parsed_args[var],"\n") 
+            write(io,str)
+        end
     end
 end
 
