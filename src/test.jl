@@ -4,10 +4,10 @@ function testRotation(n,epsilon=1e-6)
     flag = true
     for i in 1:n
         p = Point()
-        theta = 2*pi*rand()
+        alpha = 2*pi*rand()
         u = unitVector(Point())
-        v = rotate(p,theta,u)
-        w = rotateRodrigues(p,theta,u)
+        v = rotate(p,alpha,u)
+        w = rotateRodrigues(p,alpha,u)
         b = distance(v,w) < epsilon
         if !b
             println(v)
@@ -226,17 +226,17 @@ end
 function testSurfaceIntersection()
     q1 = Point()
     q2 = Point()
-    theta = pi/2*rand()
+    alpha = pi/2*rand()
     zmax = abs(q1.z) > abs(q2.z) ? abs(q1.z) : abs(q2.z)
-    #theta2 = pi/2*rand()
-    #println(rad2deg(theta2))
-    #p1 = rotate(1.5*ex,theta2,ez)
+    #alpha2 = pi/2*rand()
+    #println(rad2deg(alpha2))
+    #p1 = rotate(1.5*ex,alpha2,ez)
     #p2 = p1 + 3*ez
     p1 = Point((q1.x+q2.x)/2,(q1.y+q2.y)/2,0.0)
-    p1 = rotate(p1,theta/2,ez)
+    p1 = rotate(p1,alpha/2,ez)
     p1 = p1 - zmax*ez
     p2 = p1 + 2*zmax*ez
-    int1,int2 = surfaceLineIntersection(p1,p2,q1,q2,theta)
+    int1,int2 = surfaceLineIntersection(p1,p2,q1,q2,alpha)
     println(int1)
     println(int2)
 end
@@ -280,9 +280,9 @@ function testThirdCaseIntersection()
     #q2 = Point(rand(),rand(),0)
     q1 = e0
     q2 = ex
-    theta = pi/2*rand()
+    alpha = pi/2*rand()
     aux = (q1+q2)/2
-    aux = rotate(aux,theta/2,ez)
+    aux = rotate(aux,alpha/2,ez)
     p1 = aux 
     p2 = aux + rotate(aux,pi/100*(2*rand()-1),ez)
     vp = p2-p1
@@ -294,8 +294,8 @@ function testThirdCaseIntersection()
     #println(eqs0(q1,q2,vq,p1,p2,vp,th))
     println()
     #println("rotation angle")
-    #println(theta)
-    return thirdCaseIntersection(p1,p2,vp,q1,q2,vq,theta)
+    #println(alpha)
+    return thirdCaseIntersection(p1,p2,vp,q1,q2,vq,alpha)
 end
 
 function plotCircle!(c::Point,r::Real;lw::Real=1)
@@ -317,31 +317,31 @@ function plotLine!(p1::Point,p2::Point;lw::Real=1,label::String="")
     end
 end
 
-function plotRotation!(q1::Point,q2::Point,theta::Real;lw::Real=1,alpha=0.3)
+function plotRotation!(q1::Point,q2::Point,alpha::Real;lw::Real=1,alpha_plot=0.3)
     vq = q2-q1
-    angles = LinRange(0,theta,200)
+    angles = LinRange(0,alpha,200)
     ts = LinRange(0,1,3)
     surf = [zrotation(a)*(q1 + t*vq) for a in angles for t in ts ]
     surf = [toArray(p) for p in surf]
     surf = hcat(surf...)
-    plot!(surf[1,:],surf[2,:],lw=1,color="black",alpha=alpha)
+    plot!(surf[1,:],surf[2,:],lw=1,color="black",alpha=alpha_plot)
     r1,d1,r2,d2 = closestAndFurthestPointToOrigin(q1,q2,vq)
     scatter!([r1.x,r2.x],[r1.y,r2.y])
     plotCircle!(e0,d1,lw=lw)
     plotCircle!(e0,d2,lw=lw)
 end
 
-function plotPointRotation!(p::Point,theta::Real;lw::Real=1,color="black",alpha=1)
-    angles = LinRange(0,theta,200)
+function plotPointRotation!(p::Point,alpha::Real;lw::Real=1,color="black",alpha_plot=1)
+    angles = LinRange(0,alpha,200)
     surf = [zrotation(a)*(p) for a in angles]
     surf = [toArray(p) for p in surf]
     surf = hcat(surf...)
-    plot!(surf[1,:],surf[2,:],lw=lw,color=color,alpha=alpha)
+    plot!(surf[1,:],surf[2,:],lw=lw,color=color,alpha=alpha_plot)
 end
 
 function plotChain!(P::AbstractChain,c="red",lw=2)
     arr = toArray(P)
-    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=  c,markersize=3    )
+    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=c,markersize=3)
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
 end
 
@@ -351,21 +351,21 @@ function testParallelCheck(n)
         p = plot()
         q1 = Point(2*rand()-1,2*rand()-1,0.0) 
         q2 = Point(2*rand()-1,2*rand()-1,0.0) 
-        theta = pi/2*(2*rand()-1)
-        p1 = zrotation(theta/3)*q1
-        p2 = zrotation(theta/3)*q2
+        alpha = pi/2*(2*rand()-1)
+        p1 = zrotation(alpha/3)*q1
+        p2 = zrotation(alpha/3)*q2
         vp = p2 - p1
         p1 = p1 + 0.6*vp #+ 0.1*ex
         p2 = p2 + 0.6*vp
-        a = thirdCaseIntersection(p1,p2,p2-p1,q1,q2,q2-q1,theta)
+        a = thirdCaseIntersection(p1,p2,p2-p1,q1,q2,q2-q1,alpha)
         flag = flag && a
         if !a
             println(p1)
             println(p2)
             println(q1)
             println(q2)
-            println(theta)
-            plotRotation!(q1,q2,theta)
+            println(alpha)
+            plotRotation!(q1,q2,alpha)
             plotLine!(p1,p2,lw=3,label="segmento")
             display(p)
         end
@@ -378,20 +378,11 @@ function benchmarkC1Quadratic1()
     p2 = Point()
     q1 = Point()
     q2 = Point()
-    theta = pi/4*(2*rand()-1)
+    alpha = pi/4*(2*rand()-1)
     c,r,d = case1SurfaceCoefficients(q1,q2,q2-q1)
     return case1SurfaceQuadricRoots(c,r,d,p1,p2,q2-q1)
 end
 
-function benchmarkC1Quadratic2()
-    p1 = Point()
-    p2 = Point()
-    q1 = Point()
-    q2 = Point()
-    theta = pi/4*(2*rand()-1)
-    c,r,d = case1SurfaceCoefficients(q1,q2,q2-q1)
-    return case1SurfaceQuadricRoots2(c,r,d,p1,p2,q2-q1)
-end
 
 function assertRootsEqual(n)
     flag = true
@@ -400,7 +391,7 @@ function assertRootsEqual(n)
         p2 = Point()
         q1 = Point()
         q2 = Point()
-        theta = pi/4*(2*rand()-1)
+        alpha = pi/4*(2*rand()-1)
         c,r,d = case1SurfaceCoefficients(q1,q2,q2-q1)
         A =  case1SurfaceQuadricRoots(c,r,d,p1,p2,q2-q1)
         B =  case1SurfaceQuadricRoots(c,r,d,p1,p2,q2-q1)
@@ -409,19 +400,45 @@ function assertRootsEqual(n)
     return flag
 end
 
+function testMoveBeforeDihedral(m::Integer=1000,n::Integer=20)
+    for t in 1:m
+        P = PolygonalChain(n)
+        i = rand(1:n-3)
+        newP = moveBeforeDihedral(P,i) 
+        if newP[i+1].z >= 0
+            println("fail")
+            println(t)
+            println(i)
+            println(toArray(newP))
+        end
+    end
+end
 
+function testMoveBeforeInternal(m::Integer=1000,n::Integer=20)
+    for t in 1:m
+        P = PolygonalChain(n)
+        i = rand(1:n-2)
+        newP = moveBeforeInternal(P,i)
+        n1 = cross(newP[i],newP[i+2]) 
+        # newP[i+2] must be aligned to 
+        if n1.z <= 0
+            println("fail")
+            println(t)
+            println(i)
+            println(toArray(newP))
+        end
+    end
+end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using BenchmarkTools, IntervalArithmetic, IntervalRootFinding
+    using BenchmarkTools
+    #using IntervalArithmetic, IntervalRootFinding
     println()
     println("entramos")
     println()  
     #println(testThirdCaseIntersection())
     display(@benchmark benchmarkC1Quadratic1())
-    println()
-    println()
-    display(@benchmark benchmarkC1Quadratic2())
     println()
     println(assertRootsEqual(1000))
 end

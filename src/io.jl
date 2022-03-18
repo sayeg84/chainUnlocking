@@ -2,6 +2,18 @@ include("algorithms.jl")
 
 using DelimitedFiles, Statistics
 
+function rotate!(P::AbstractChain,ang_idx::Integer,alpha::Real)
+    n = length(P)
+    if 1 <= ang_idx <= n-2
+        dihedralRotate!(P,ang_idx,alpha)
+    elseif n-1 <= ang_idx <= 2*n-3
+        ang_idx = ang_idx - n + 2 # adjusting to be smaller 
+        internalRotate!(P,ang_idx,alpha)
+    else
+        error("index $(ang_idx) is not supported")
+    end
+end
+
 function saveChain(name::AbstractString,P::AbstractChain)
     arr = toArray(P)
     open(name,"w+") do io
@@ -16,7 +28,7 @@ function funcValues(Q,diheds,angles,minFunc,lastQ)
     for i in 1:(length(angles)-1)
         if diheds[i]!= 0
             newQ = moveBeforeDihedral(newQ,diheds[i])
-            dihedralRotate!(newQ,diheds[i],angles[i])
+            rotate!(newQ,diheds[i],angles[i])
         end
         funcvals[i+1] = minFunc(newQ)
     end
@@ -47,7 +59,7 @@ function saveTrajectory(name,Q::AbstractChain,angles,diheds)
         write(io,coordinates)
         for i in 1:length(angles)
             if diheds[i]!= 0 
-                dihedralRotate!(newQ,diheds[i],angles[i])
+                rotate!(newQ,diheds[i],angles[i])
                 arr = toArray(newQ)
                 coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
                 coordinates = join(coordinates,",")
@@ -91,7 +103,7 @@ end
 
 function readChain(name::AbstractString)
     chain = DelimitedFiles.readdlm(name,',',T)
-    return PolygonalNew(chain)
+    return PolygonalChain(chain)
 end
 
 function readSingleSimulation(name::AbstractString)

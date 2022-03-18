@@ -1,23 +1,33 @@
 include("argumentParsing.jl")
 include("io.jl")
 
-function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;parsed_args,savename="")
+function lsimulationPar(ls,indep_simuls::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;parsed_args,savename="")
     n = length(ls)
-    algoFunc = getfield(Main,Symbol(parsed_args["algorithm"]))
-    minFunc = getfield(Main,Symbol(parsed_args["minFunc"]))
+    algoFunc =  getfield(Main,Symbol(parsed_args["algorithm"]))
+    minFunc  =  getfield(Main,Symbol(parsed_args["minFunc"]))
     chainFunc = getfield(Main,Symbol(parsed_args["chain"]))
     minfs_mean = zeros(n)
     minfs_error = zeros(n)
     ts_mean = zeros(n)
     ts_error = zeros(n)
     for i in 1:n
-        temp_minfs = zeros(iter)
-        temp_ts = zeros(iter)
-        for j in 1:iter
+        temp_minfs = zeros(indep_simuls)
+        temp_ts = zeros(indep_simuls)
+        for j in 1:indep_simuls
             Q = chainFunc(ls[i])
             #println("creacion ok")
-            lastQ, angles, diheds, minvals = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,temp_init=parsed_args["temp_init"],max_iter=parsed_args["max_iter"])
-            per = round(((i-1)*iter+(j-1))*100/(parsed_args["indep_simuls"]*n); digits= 2)
+            lastQ, angles, diheds, minvals = algoFunc(Q,
+                minFunc,
+                parsed_args["tolerance"],
+                angmax,
+                angmin,
+                parsed_args["internal"],
+                temp_init=parsed_args["temp_init"],
+                temp_f=parsed_args["temp_f"],
+                iter_per_temp=parsed_args["iter_per_temp"],
+                max_iter=parsed_args["max_iter"]
+            )
+            per = round(((i-1)*indep_simuls+(j-1))*100/(parsed_args["indep_simuls"]*n); digits= 2)
             prog = "Progress: $(per) % "
             println()
             println(prog)
@@ -26,10 +36,11 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
             if !isempty(savename)
                 n1zeros = Int(ceil(log10(n+1)))
                 n1 = lpad(i,n1zeros,'0')
-                n2zeros = Int(ceil(log10(iter+1)))
+                n2zeros = Int(ceil(log10(indep_simuls+1)))
                 n2 = lpad(j,n2zeros,"0")
                 saveSimulation(joinpath(savename,string(n1,"_",n2,)),Q,lastQ,angles,diheds,saveTrajec=false)
             end
+            
             temp_ts[j] = length(diheds)
 	    #println(temp_ts[j])
             temp_minfs[j] = minFunc(lastQ)
@@ -71,7 +82,7 @@ function main()
     savefig(joinpath(parsed_args["path"],"lsimulation.pdf"))
 end
 
-if abspath(PROGRAM_FILE) == @__FILE__
-    using Plots
-    main()    
-end
+using Plots
+println("Simple simulator")
+println()
+main()    

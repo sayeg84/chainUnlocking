@@ -213,25 +213,25 @@ function dot(A::Matrix,B::Matrix)::T
     return A.xx*B.xx + A.xy*B.xy + A.xz*B.xz + A.yx*B.yx + A.yy*B.yy + A.yz*B.yz + A.zx*B.zx + A.zy*B.zy + A.zz*B.zz
 end
 
-function xrotation(theta::Real)::Matrix
-    a = cos(theta)
-    b = sin(theta)
+function xrotation(ang::Real)::Matrix
+    a = cos(ang)
+    b = sin(ang)
     return Matrix(1, 0, 0,
     0, a, -b,
     0, b, a)
 end
 
-function yrotation(theta::Real)::Matrix
-    a = cos(theta)
-    b = sin(theta)
+function yrotation(ang::Real)::Matrix
+    a = cos(ang)
+    b = sin(ang)
     return Matrix(a, 0, b,
     0, 1, 0,
     -b, 0, a)
 end
 
-function zrotation(theta::Real)::Matrix
-    a = cos(theta)
-    b = sin(theta)
+function zrotation(ang::Real)::Matrix
+    a = cos(ang)
+    b = sin(ang)
     return Matrix(a, -b, 0,
     b, a, 0,
     0, 0, 1)
@@ -239,13 +239,13 @@ end
 
 
 """
-rotation(theta::T,u::Point)::Matrix
+rotation(ang::T,u::Point)::Matrix
 
-Computes the rotation matrix around unit vector `u` for an angle `theta` using the explicit formula in https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
+Computes the rotation matrix around unit vector `u` for an angle `ang` using the explicit formula in https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
 """
-function rotation(theta::Real,u::Point)::Matrix
-    a = cos(theta)
-    b = sin(theta)
+function rotation(ang::Real,u::Point)::Matrix
+    a = cos(ang)
+    b = sin(ang)
     c = 1-a
     return Matrix(a + pow2(u.x)*c, u.x*u.y*c - u.z*b, u.x*u.z*c + u.y*b,
     u.y*u.x*c + u.z*b, a + pow2(u.y)*c, u.y*u.z*c - u.x*b,
@@ -254,22 +254,22 @@ end
 
 
 """
-rotate(p::Point,theta::T,u::Point)::Point
+rotate(p::Point,ang::T,u::Point)::Point
 
-Rotate a point `p` an angle `theta` using the plane defined by unit vector `u` by multiplying point `p` by a rotation matrix.
+Rotate a point `p` an angle `ang` using the plane defined by unit vector `u` by multiplying point `p` by a rotation matrix.
 """
-function rotate(p::Point,theta::Real,u::Point)::Point
-    return rotation(theta,u)*p
+function rotate(p::Point,ang::Real,u::Point)::Point
+    return rotation(ang,u)*p
 end
 
 """
-rotateRodrigues(p::Point,theta::T,u::Point)::Point
+rotateRodrigues(p::Point,ang::T,u::Point)::Point
 
-Rotate a point `p` an angle `theta` using the plane defined by unit vector `u` by using Rodrigues rotation forumla
+Rotate a point `p` an angle `ang` using the plane defined by unit vector `u` by using Rodrigues rotation forumla
 """
-function rotateRodrigues(p::Point,theta::Real,u::Point)::Point
-    a = cos(theta)
-    b = sin(theta)
+function rotateRodrigues(p::Point,ang::Real,u::Point)::Point
+    a = cos(ang)
+    b = sin(ang)
     return a*p + b*cross(u,p) + (1-a)*dot(u,p)*u
 end
 
@@ -282,8 +282,8 @@ The angle is the angle between the links (Colinear points will return pi)
 function bangle(a::Point,b::Point,c::Point)::T
     u1 = b-a
     u2 = c-b
-    theta = dot(u1,u2)/(norm(u1)*norm(u2))
-    return pi - acos(theta)
+    ang = dot(u1,u2)/(norm(u1)*norm(u2))
+    return pi - acos(ang)
 end
 
 
@@ -342,19 +342,19 @@ function PolygonalOld(n::Integer)
     return PolygonalOld(Tuple(A))
 end
 
-struct PolygonalNew <: AbstractChain
+struct PolygonalChain <: AbstractChain
     vertices::Array{Point,1}
 end
 
-function PolygonalNew(n::Integer)
+function PolygonalChain(n::Integer)
     A = [Point() for i in 1:n]
-    return PolygonalNew(A)
+    return PolygonalChain(A)
 end
 
-function PolygonalNew(arr::Array{<:Real,2})
+function PolygonalChain(arr::Array{<:Real,2})
     if size(arr)[2] == 3
         A = [Point(arr[i,1],arr[i,2],arr[i,3]) for i in 1:(size(arr)[1])]
-        return PolygonalNew(A)
+        return PolygonalChain(A)
     else
         error("Array dimensions must be (n,3)")
     end
@@ -401,14 +401,14 @@ function centerChain(P::PolygonalOld)::PolygonalOld
     return PolygonalOld(arr)
 end
 
-function centerChain(P::PolygonalNew)::PolygonalNew
+function centerChain(P::PolygonalChain)::PolygonalChain
     c = centroid(P)
     arr = [p-c for p in P.vertices]
-    return PolygonalNew(arr)
+    return PolygonalChain(arr)
 end
 
 
-function centerChain!(P::PolygonalNew)
+function centerChain!(P::PolygonalChain)
     c = centroid(P)
     n = length(P)
     for i in 1:(n+1)
@@ -535,7 +535,7 @@ function lengthsAndAngles(P::AbstractChain)::Tuple{Array{T,1},Array{T,1},Array{T
     return (lengths,angles,dihedrals)
 end
 
-function PolygonalNew(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalNew
+function PolygonalChain(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalChain
     n = length(linkLengths)
     if n == (length(linkAngles)+1) && n == (length(dihedralAngles)+2)
         vertices = Array{Point,1}(undef,n+1)
@@ -554,13 +554,13 @@ function PolygonalNew(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},d
             d0 = rotate(d0,dihedralAngles[i-2],bcnorm)
             vertices[i+1] = vertices[i] + d0
         end
-        return PolygonalNew(vertices)
+        return PolygonalChain(vertices)
     else
         error("Arrays size $n , $(length(linkAngles)+1) and $(length(linkAngles)+2) do not match")
     end
 end
 
-function PolygonalChainRosetta(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalNew
+function PolygonalChainRosetta(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalChain
     n = length(linkLengths)
     if n == (length(linkAngles)+1) && n == (length(dihedralAngles)+2)
         vertices = Array{Point,1}(undef,n+1)
@@ -579,51 +579,131 @@ function PolygonalChainRosetta(linkLengths::Array{<:Real,1},linkAngles::Array{<:
             #display(vertices)
             #println()
         end
-        return PolygonalNew(vertices)
+        return PolygonalChain(vertices)
     else
         error("Arrays size $n , $(length(linkAngles)+1) and $(length(linkAngles)+2) do not match")
     end
 end
 
 
-function dihedralRotate(P::PolygonalOld,i::Integer,theta::Real)::PolygonalOld
+
+function dihedralRotate(P::PolygonalChain,i::Integer,phi::Real)::PolygonalChain
     n = length(P)
-    if 1 <= i < n-1
-        rotN = unitVector(P[i+1]-P[i])
+    if 1 <= i <= n-2
+        rotN = unitVector(P[i+2]-P[i+1])
+        rotMat = rotation(phi,rotN)
+        points = [p for p in P.vertices]
+        for j in i+3:n+1
+            points[j] = rotMat*(points[j]-P[i+2]) + P[i+2]
+        end
+        return PolygonalChain(points)
+    else
+        error("$i must be lower than $n")
+    end
+end
+
+"""
+Same as `dihedralRotate` but for case where chain `P` has already passed
+by `moveBeforeDihedral`
+"""
+function dihedralRotateFast(P::PolygonalChain,i::Integer,phi::Real)::PolygonalChain
+    n = length(P)
+    if 1 <= i <= n-2
+        rotMat = xrotation(phi)
+        points = [p for p in P.vertices]
+        for j in i+3:n+1
+            points[j] = rotMat*(points[j]-P[i+2]) + P[i+2]
+        end
+        return PolygonalChain(points)
+    else
+        error("$i must be lower than $n")
+    end
+end
+
+"""
+Rotating chain inpalce
+"""
+function dihedralRotate!(P::PolygonalChain,i::Integer,phi::Real)
+    n = length(P)
+    if 1 <= i <= n-2
+        rotN = unitVector(P[i+2]-P[i+1])
+        rotMat = rotation(phi,rotN)
+        for j in i+3:n+1
+            P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
+        end
+    else
+        error("$i must be lower than $n")
+    end
+end
+
+function dihedralRotateFast!(P::PolygonalChain,i::Integer,phi::Real)
+    n = length(P)
+    if 1 <= i <= n-2
+        rotMat = xrotation(phi)
+        for j in i+3:n+1
+            P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
+        end
+    else
+        error("$i must be lower than $n")
+    end
+end
+
+function internalRotate(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
+    n = length(P)
+    if 1 <= i <= n-1
+        rotN = unitVector(cross(P[i]-P[i+1],P[i+2]-P[i+1]))
         rotMat = rotation(theta,rotN)
         points = [p for p in P.vertices]
         for j in i+2:n+1
             points[j] = rotMat*(points[j]-P[i+1]) + P[i+1]
         end
-        return PolygonalOld(points)
+        return PolygonalChain(points)
     else
         error("$i must be lower than $n")
     end
 end
 
-function dihedralRotate(P::PolygonalNew,i::Integer,theta::Real)::PolygonalNew
+"""
+Same as `internalRotate` but for case where chain `P` has already passed
+by `moveBeforeInternal`
+"""
+function internalRotateFast(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
     n = length(P)
-    if 1 <= i < n-1
-        rotN = unitVector(P[i+2]-P[i+1])
-        rotMat = rotation(theta,rotN)
+    if 1 <= i <= n-1
+        rotMat = xrotation(theta)
         points = [p for p in P.vertices]
-        pivot = copy(P[i+2])
-        for j in i+3:n+1
-            points[j] = rotMat*(points[j]-pivot) + pivot
+        for j in i+2:n+1
+            points[j] = rotMat*(points[j]-P[i+1]) + P[i+1]
         end
-        return PolygonalNew(points)
+        return PolygonalChain(points)
     else
         error("$i must be lower than $n")
     end
 end
 
 
-function dihedralRotate!(P::PolygonalNew,i::Integer,theta::Real)
+
+"""
+Rotating chain inpalce
+"""
+function internalRotate!(P::PolygonalChain,i::Integer,theta::Real)
     n = length(P)
-    if 1 <= i < n-1
-        rotN = unitVector(P[i+2]-P[i+1])
+    if 1 <= i <= n-1
+        rotN = unitVector(cross(P[i]-P[i+1],P[i+2]-P[i+1]))
         rotMat = rotation(theta,rotN)
-        for j in i+3:n+1
+        for j in i+2:n+1
+            P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
+        end
+    else
+        error("$i must be lower than $n")
+    end
+end
+
+function internalRotateFast!(P::PolygonalChain,i::Integer,theta::Real)
+    n = length(P)
+    if 1 <= i <= n-1
+        rotMat = xrotation(theta)
+        for j in i+2:n+1
             P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
         end
     else
@@ -659,11 +739,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
     P = PolygonalOld(m)
     display(@benchmark dihedralRotate(P,10,pi/2))
     println()
-    Q = PolygonalNew(m)    
+    Q = PolygonalChain(m)    
     display(@benchmark dihedralRotate!(Q,10,pi/2))
     println()
     P = PolygonalOld(m)
-    Q = PolygonalNew([p for p in P.vertices])
+    Q = PolygonalChain([p for p in P.vertices])
     println(simpleRmsd(P,Q))
     P = dihedralRotate(P,10,pi/2)
     dihedralRotate!(Q,10,pi/2)
@@ -673,9 +753,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
     c = Point(1.0,1.0,0.0)
     d = Point(1.0,1.0,1.0)
     e = Point(0.0,1.0,1.0)
-    P = PolygonalNew([a,b,c,d,e])
+    P = PolygonalChain([a,b,c,d,e])
     dihedralRotate!(P,2,-pi/4)
     println(P.vertices)
     a = rand(6,3)
-    b = PolygonalNew(a)
+    b = PolygonalChain(a)
 end

@@ -8,7 +8,7 @@ function parse_commandline()
         "--algorithm"
             help = "Algorithm to make simulation"
             arg_type = String
-            default = "localSearchRandom"
+            default = "localRandomSearch"
         "--minFunc"
             help = "Minimizing function"
             arg_type = String
@@ -56,10 +56,24 @@ function parse_commandline()
             help = "Initial temperature for simulated annelaing"
             arg_type = Float64
             default = 4.0
+        "--temp_f"
+            help = "Final temperature for simulated annelaing"
+            arg_type = Float64
+            default = 1e-2
+        "--iter_per_temp"
+            help = "Iterations per temperature for simulated annealing"
+            arg_type = Int
+            default = 20
         "--tolerance"
             help = "Tolerance for minimum value of function"
             arg_type = Float64
             default = 1e-2
+        "--internal"
+            help= "Flag to indicate if internal angles are also allowed to be changed"
+            action = :store_true
+        "--debug"
+            help= "Flag to indicate if internal angles are also allowed to be changed"
+            action = :store_true
     end
     return parse_args(s)
 end

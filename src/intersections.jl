@@ -35,11 +35,11 @@ end
 
 
 """
-quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
+quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int16,T,T}
 
 Returns a triple `n,r1,r2` containing the solutions of equation ``a x^2 + bx + c = 0``. `n` is the number of different roots that exist of the equation.
 """
-function quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int8,T,T}
+function quadraticEquationRoots(a::T,b::T,c::T)::Tuple{Int16,T,T}
     R = pow2(b) - 4*a*c
     A = isapprox(a,0,atol=1e-15)
     B = isapprox(b,0,atol=1e-15)
@@ -131,7 +131,7 @@ end
 
 
 """
-twoxtwoLinearSystem(a11::T,a12::T,b1::T,a21::T,a22::T,b2::T)::Tuple{Int8,T,T}
+twoxtwoLinearSystem(a11::T,a12::T,b1::T,a21::T,a22::T,b2::T)::Tuple{Int16,T,T}
 
 Solves the 2x2 linear system defined by a11x + a12y = b1 and a21x + a22y = b2.
 
@@ -139,7 +139,7 @@ If the system is singular, it returns `0,0,0`.
 
 If there is an unique solution, it returns `1,x,y`
 """
-function twoxtwoLinearSystem(a11::T,a12::T,b1::T,a21::T,a22::T,b2::T)::Tuple{Int8,T,T}
+function twoxtwoLinearSystem(a11::T,a12::T,b1::T,a21::T,a22::T,b2::T)::Tuple{Int16,T,T}
     det = a11*a22 - a12*a21
     if !isapprox(det,0,atol=1e-15)
         detx = b1*a22 - b2*a12
@@ -196,11 +196,11 @@ function segmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point)::Tuple{Boo
 end
 
 """
-segmentPlaneIntersection(p1::Point,p2::Point,u::Point)::Tuple{Int8,Point}
+segmentPlaneIntersection(p1::Point,p2::Point,u::Point)::Tuple{Int16,Point}
 
 Finds the intersection of a segment defined by points `p1`,`p2` and a plane that goes thorugh the origin with normal vector `u`
 """
-function segmentPlaneIntersection(p1::Point,p2::Point,u::Point)::Tuple{Int8,Point}
+function segmentPlaneIntersection(p1::Point,p2::Point,u::Point)::Tuple{Int16,Point}
     v = p2 - p1
     discrim = dot(v,u)
     num = dot(-1*p1,u)
@@ -222,8 +222,8 @@ end
 
 
 
-function angleTest(phi::Real,theta::Real)::Bool
-    return theta > 0 ? (0 <= phi <= theta) : (0 >= phi >= theta)
+function angleTest(ang::Real,alpha::Real)::Bool
+    return alpha > 0 ? (0 <= ang <= alpha) : (0 >= ang >= alpha)
 end
 
 #=
@@ -309,13 +309,13 @@ end
 
 
 """
-function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int16,T,T}
 
 Given a revolution surface described by ``r^2(z) = c z^2 + 2 r z + d``, it returns the roots ``t`` of the equation arising for substituing ``x^2(t) + y^2(t)= r^2(z(t))``.
 
-It returns `a,r1,r2` where `a`is an Int8 representing the number of roots, `r` the first root and `r2`. It returns `-1,0,0` when the equation is poorly defined due to an infinite number of roots.
+It returns `a,r1,r2` where `a`is an Int16 representing the number of roots, `r` the first root and `r2`. It returns `-1,0,0` when the equation is poorly defined due to an infinite number of roots.
 """
-function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+function case1SurfaceQuadricRoots(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int16,T,T}
     cp = cross(p1,p2)
     a = pow2(vp.x) +  pow2(vp.y) - c*pow2(vp.z)
     b = 2*(p1.x*vp.x + p1.y*vp.y - vp.z*(c*p1.z + r))
@@ -325,15 +325,15 @@ end
 
 
 """
-function case1SurfaceQuadricRootsAlt(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+function case1SurfaceQuadricRootsAlt(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int16,T,T}
 
 Given a revolution surface described by ``r^2(z) = c z^2 + 2 r z + d``, it returns the roots ``t`` of the equation arising for substituing ``x^2(t) + y^2(t)= r^2(z(t))``.
 
-It returns `a,r1,r2` where `a`is an Int8 representing the number of roots, `r` the first root and `r2`. It returns `-1,0,0` when the equation is poorly defined due to an infinite number of roots.
+It returns `a,r1,r2` where `a`is an Int16 representing the number of roots, `r` the first root and `r2`. It returns `-1,0,0` when the equation is poorly defined due to an infinite number of roots.
 
 It computes the coefficientes of the equation using a simplified form obtained from `https://math.stackexchange.com/questions/4082142/intersection-between-rotating-3d-line-and-3d-line/`
 """
-function case1SurfaceQuadricRootsAlt(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int8,T,T}
+function case1SurfaceQuadricRootsAlt(c::Real,r::Real,d::Real,p1::Point,p2::Point,vp::Point)::Tuple{Int16,T,T}
     cp = cross(p1,p2)
     S = p1.x*vp.x + p1.y*vp.y - (r+c*p1.z)*vp.z
     D = c*pow2(vp.z) - pow2(vp.x) - pow2(vp.y)
@@ -365,17 +365,17 @@ end
 
 
 """
-phiParameter(xp::T,yp::T,xq::T,yq::T)::T
+alphaParameter(xp::T,yp::T,xq::T,yq::T)::T
 
-returns the value of `phi` solving the equation system:
+returns the value of `alpha` solving the equation system:
 
-xq cos(phi) + yq sin(phi) = xp 
--xq sin(phi) + yq cos(phi) = yp
+xq cos(alpha) + yq sin(alpha) = xp 
+-xq sin(alpha) + yq cos(alpha) = yp
 """
-function phiParameter(xp::T,yp::T,xq::T,yq::T)::T
-    sinphi = xq*yp - xp*yq
-    cosphi = xp*xq + yp*yq
-    return atan(sinphi,cosphi)
+function alphaParameter(xp::T,yp::T,xq::T,yq::T)::T
+    sinalpha = xq*yp - xp*yq
+    cosalpha = xp*xq + yp*yq
+    return atan(sinalpha,cosalpha)
 end
 
 
@@ -385,28 +385,28 @@ getParameters(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point):
 Given a value t such that the following equations hold 
 
 q1.z + s*vq.z = p1.z + t*vp.z
-(q1.x + s*vq.x) cos(phi) + (q1.y + s*vq.y) sin(phi) = p1.x + t*vp.x
--(q1.x + s*vq.x) sin(phi) + (q1.y + s*vq.y) cos(phi) = p1.y + t*vp.y
+(q1.x + s*vq.x) cos(alpha) + (q1.y + s*vq.y) sin(alpha) = p1.x + t*vp.x
+-(q1.x + s*vq.x) sin(alpha) + (q1.y + s*vq.y) cos(alpha) = p1.y + t*vp.y
 
-It returns the tuple of `s,phi` such that the equations hold.
+It returns the tuple of `s,alpha` such that the equations hold.
 """
 function getParameters(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Tuple{T,T}
     inp = p1 + t*vp
     s = (inp.z- q1.z)/vq.z
     inq = q1 + s*vq
-    phi = phiParameter(inp.x,inp.y,inq.x,inq.y)
-    return s,phi
+    alpha = alphaParameter(inp.x,inp.y,inq.x,inq.y)
+    return s,alpha
 end
 
 
 """
-case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Tuple{Bool,Point}
+case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real)::Tuple{Bool,Point}
 
-Given a parameter `t` which is root of the equation ``x^2(t) + y^2(t)= r^2(z(t))`` arising from rotation segment q1q2, check if  the point (x(t),y(t),z(t)) is inside the surface of revolution of rotating segment q1q2 an angle theta.
+Given a parameter `t` which is root of the equation ``x^2(t) + y^2(t)= r^2(z(t))`` arising from rotation segment q1q2, check if  the point (x(t),y(t),z(t)) is inside the surface of revolution of rotating segment q1q2 an angle alpha.
 
 It returns a tuple `a,p` where `a` is a Bool saying if there is intersection and `p` is the point of such intersection.
 """
-function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=false)::Tuple{Bool,Point}
+function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;debug=false)::Tuple{Bool,Point}
     # checking the intersection is within the segment
     if 0 <= t <= 1
         debug && println("la raíz esta bien")
@@ -415,18 +415,18 @@ function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,v
         inp = p1 + t*vp
         debug && println(inp)
         debug && println("$a,$b")
-        debug && (s,phi = getParameters(t,p1,p2,vp,q1,q2,vq))
+        debug && ((s,ang) = getParameters(t,p1,p2,vp,q1,q2,vq) )
         debug && println(s)
-        debug && println(phi)
+        debug && println(ang)
         # check intersection only if z value is in interval
         if a <= inp.z <= b 
             debug && println("en z está bien")
-            s,phi = getParameters(t,p1,p2,vp,q1,q2,vq)
+            s,ang = getParameters(t,p1,p2,vp,q1,q2,vq)
             debug && println(s)
-            debug && println(phi)
+            debug && println(ang)
             debug && println(0 <= s <= 1)
-            debug && println(angleTest(phi,theta))
-            if 0 <= s <= 1 && angleTest(phi,theta)
+            debug && println(angleTest(ang,alpha))
+            if 0 <= s <= 1 && angleTest(ang,alpha)
                 return true, inp
             end
         end 
@@ -436,7 +436,7 @@ function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,v
     end
 end
 
-function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=false)::Tuple{Bool,Point,Point}
+function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;debug=false)::Tuple{Bool,Point,Point}
     c,r,d = case1SurfaceCoefficients(q1,q2,vq)
     roots = case1SurfaceQuadricRoots(c,r,d,p1,p2,vp)
     debug && println(roots)
@@ -446,21 +446,21 @@ function case1Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         B = isapprox(vq.y,0,atol = 1e-5)
         # cylinder and hyperboloid have angles defined in different ways
         # cylinder angle of rotation 
-        phi =  A && B ? xyIangle(p1,q1) : xyIangle(vq,vp)
-        if angleTest(phi,theta)
-            mat = zrotation(phi)
+        ang =  A && B ? xyIangle(p1,q1) : xyIangle(vq,vp)
+        if angleTest(ang,alpha)
+            mat = zrotation(ang)
             q1prime = mat*q1
             q2prime = mat*q2
             val = segmentOverlap(p1,p2,q1prime,q2prime)
             return val,e0,e0
         end
     elseif roots[1] == 1
-        int = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta,debug=debug)
+        int = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,alpha,debug=debug)
         return int[1],int[2],e0
     elseif roots[1] == 2
         #println("aca")
-        int1 = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,theta,debug=debug)
-        int2 = case1CheckRoot(roots[3],p1,p2,vp,q1,q2,vq,theta,debug=debug)
+        int1 = case1CheckRoot(roots[2],p1,p2,vp,q1,q2,vq,alpha,debug=debug)
+        int2 = case1CheckRoot(roots[3],p1,p2,vp,q1,q2,vq,alpha,debug=debug)
         return int1[1] || int2[1], int1[2],int2[2]
     else
         return false,e0,e0
@@ -482,15 +482,15 @@ end
 
 
 """
-case2checkRoot(s::T,q1::Point,q2::Point,vq::Point,inp::Point,theta::Real)::Tuple{Bool,Point}
+case2checkRoot(s::T,q1::Point,q2::Point,vq::Point,inp::Point,alpha::Real)::Tuple{Bool,Point}
 
-For a point `s` such that it is root of the equations arising from ``x^2(s) + y^2(s) = inp.x^2 + inp.y^2``, it finds the angle `phi` and checks if the root represents a point of intersection between the 2D surface arising from rotating segment `q1q2` and the segment `p1p2`.
+For a point `s` such that it is root of the equations arising from ``x^2(s) + y^2(s) = inp.x^2 + inp.y^2``, it finds the angle `ang` and checks if the root represents a point of intersection between the 2D surface arising from rotating segment `q1q2` and the segment `p1p2`.
 """
-function case2checkRoot(s::T,q1::Point,q2::Point,vq::Point,inp::Point,theta::Real)::Tuple{Bool,Point}
+function case2checkRoot(s::T,q1::Point,q2::Point,vq::Point,inp::Point,alpha::Real)::Tuple{Bool,Point}
     if 0 <= s <= 1
         inq = q1 + s*vq
-        phi = phiParameter(inp.x,inp.y,inq.x,inq.y)
-        if angleTest(phi,theta)
+        ang = alphaParameter(inp.x,inp.y,inq.x,inq.y)
+        if angleTest(ang,alpha)
             return true, inq
         else
             return false, e0
@@ -501,7 +501,7 @@ function case2checkRoot(s::T,q1::Point,q2::Point,vq::Point,inp::Point,theta::Rea
 end
 
 
-function case2Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;debug=true)::Tuple{Bool,Point,Point}
+function case2Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;debug=true)::Tuple{Bool,Point,Point}
     a,b = minmax(p1.z,p2.z)
     # plane parallel to XY must be in the z interval of segment p1p2
     if a < q1.z < b 
@@ -509,8 +509,8 @@ function case2Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         inp = p1 + t*vp
         a,b,c = case2coefficients(inp,q1,q2,vq)
         roots = quadraticEquationRoots(a,b,c)
-        int1 = case2checkRoot(roots[2],q1,q2,vq,inp,theta)
-        int2 = case2checkRoot(roots[3],q1,q2,vq,inp,theta)
+        int1 = case2checkRoot(roots[2],q1,q2,vq,inp,alpha)
+        int2 = case2checkRoot(roots[3],q1,q2,vq,inp,alpha)
         if int1[1] && int2[1]
             return true, int1[2], int2[2]
         elseif int1[1]
@@ -573,7 +573,7 @@ xyIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Boo
 
 Function to compute the points the XY-contained lines containing  segments `p1p2` and `q1q2` intersect
 """
-function xyIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Tuple{Int8,T,T}
+function xyIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Tuple{Int16,T,T}
     ts1 = twoxtwoLinearSystem(vp.x,-vq.x,q1.x-p1.x,vp.y,-vq.y,q1.y-p1.y)
     return ts1
 end
@@ -613,30 +613,30 @@ function segmentCircleIntersection(p1::Point,p2::Point,vp::Point,r::Real)::Tuple
 end
 
 """
-checkSegmentCircleIntersection(roots,p1::Point,p2::Point,vp::Point,q::Point,theta::Real)::Bool
+checkSegmentCircleIntersection(roots,p1::Point,p2::Point,vp::Point,q::Point,alpha::Real)::Bool
 
-Given the `roots` tuple representing the values of parameter `t` at which intersections between a segment `p1p2` and a circle centered at the origin and passing by `q`, checks if the intersection happens when rotating point `q` an angle smaller than `theta`
+Given the `roots` tuple representing the values of parameter `t` at which intersections between a segment `p1p2` and a circle centered at the origin and passing by `q`, checks if the intersection happens when rotating point `q` an angle smaller than `alpha`
 """
-function checkSegmentCircleIntersection(roots,p1::Point,p2::Point,vp::Point,q::Point,theta::Real)::Bool
+function checkSegmentCircleIntersection(roots,p1::Point,p2::Point,vp::Point,q::Point,alpha::Real)::Bool
     if roots[1] == 0
         return false
     elseif roots[1] == 1 
         inp = p1 + roots[2]*vp
         #scatter!([inp.x],[inp.y])
         # finding angle between intersection and circle-defining vector
-        phi = xyIangle(q,inp)
-        return angleTest(phi,theta)
+        ang = xyIangle(q,inp)
+        return angleTest(ang,alpha)
     else
         inp1 = p1 + roots[2]*vp
         ang1 = xyIangle(q,inp1)
         inp2 = p1 + roots[3]*vp
         ang2 = xyIangle(q,inp2)
         #scatter!([inp1.x,inp2.x],[inp1.y,inp2.y])
-        return angleTest(ang1,theta) || angleTest(ang2,theta)
+        return angleTest(ang1,alpha) || angleTest(ang2,alpha)
     end
 end
 
-function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta;debug=false)
+function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha;debug=false)
     # segments already intersect
     # this should never happen in practice but we add it for debugging reasons
     # println("dentro caso 3")
@@ -649,7 +649,11 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         for q in (q1,q2)
             r = norm(q)
             roots = segmentCircleIntersection(p1,p2,vp,r)
-            test = checkSegmentCircleIntersection(roots,p1,p2,vp,q,theta)
+            debug && println(roots)
+            if roots[1]==2 && ((roots[2]==1 && roots[3]==1) || (roots[2]==0 && roots[3]==0))
+                return false
+            end
+            test = checkSegmentCircleIntersection(roots,p1,p2,vp,q,alpha)
             if test
                 return true
             end
@@ -658,7 +662,7 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
         for p in (p1,p2)
             r = norm(p)
             roots = segmentCircleIntersection(q1,q2,vq,r)
-            test = checkSegmentCircleIntersection(roots,q1,q2,vq,p,-theta)
+            test = checkSegmentCircleIntersection(roots,q1,q2,vq,p,-alpha)
             if test
                 return true
             end
@@ -687,13 +691,13 @@ function firstFilter(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point
 end
 
 """
-bsms(q1::Point,q2::Point,vq::Point,theta)::Tuple{T,T,T,T}
+bsms(q1::Point,q2::Point,vq::Point,alpha)::Tuple{T,T,T,T}
 
 Returns the values `b3x,b3y,m3x,m3y` obtained of representing the rotation of segment q1q2 as the parametric curve ``(b3x + s*m3x,b3x + s*m3x)`` with `s` in ``[0,1]``
 """
-function bsms(q1::Point,q2::Point,vq::Point,theta)::Tuple{T,T,T,T}
-    a = cos(theta)
-    b = sin(theta)
+function bsms(q1::Point,q2::Point,vq::Point,alpha)::Tuple{T,T,T,T}
+    a = cos(alpha)
+    b = sin(alpha)
     b3x = q1.x*a - q1.y*b
     b3y = q1.x*b + q1.y*a
     m3x = vq.x*a - vq.y*b
@@ -702,12 +706,12 @@ function bsms(q1::Point,q2::Point,vq::Point,theta)::Tuple{T,T,T,T}
 end
 
 """
-st(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::Tuple{T,T}
+st(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::Tuple{T,T}
 
-Returns the parameters `s,t` at which the intersection of the line containing segment `p1p2` and line containing segment `q1q2` rotated an angle `theta` happens.
+Returns the parameters `s,t` at which the intersection of the line containing segment `p1p2` and line containing segment `q1q2` rotated an angle `alpha` happens.
 """
-function st(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::Tuple{T,T}
-    b3x,b3y,m3x,m3y = bsms(q1,q2,vq,theta)
+function st(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::Tuple{T,T}
+    b3x,b3y,m3x,m3y = bsms(q1,q2,vq,alpha)
     s = ((b3y-p1.y)*vp.x - (b3x-p1.x)*vp.y)/(m3x*vp.y - m3y*vp.x)
     if !isapprox(vp.x,0,atol=1e-15)
         t = (b3x + s*m3x - p1.x)/vp.x
@@ -719,42 +723,42 @@ end
 
 
 """
-eqs0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
+eqs0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
 
 Explicit equation for when parameter `s` of segment `q1q2` satisfies `s=0` 
 """
-function eqs0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
-    b3x,b3y,m3x,m3y = bsms(q1,q2,vq,theta)
+function eqs0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
+    b3x,b3y,m3x,m3y = bsms(q1,q2,vq,alpha)
     return ((b3y-p1.y)*vp.x - (b3x-p1.x)*vp.y)/(m3x*vp.y - m3y*vp.x)
 end
 
 """
-eqs1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
+eqs1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
 
 Explicit equation for when parameter `s` of segment `q1q2` satisfies `s=1` 
 """
-function eqs1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
-    b3x,b3y,m3x,m3y = bsms(q1,q2,vq,theta)
+function eqs1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
+    b3x,b3y,m3x,m3y = bsms(q1,q2,vq,alpha)
     return (b3y - p1.y + m3y)*vp.x - (b3x - p1.x + m3x)*vp.y 
 end
 
 """
-eqt0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
+eqt0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
 
 Explicit equation for when parameter `t` of segment `p1p2` satisfies `t=0` 
 """
-function eqt0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
-    s,t = st(q1,q2,vq,p1,p2,vp,theta)
+function eqt0(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
+    s,t = st(q1,q2,vq,p1,p2,vp,alpha)
     return t
 end
 
 """
-eqt1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
+eqt1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
 
 Explicit equation for when parameter `t` of segment `p1p2` satisfies `t=1` 
 """
-function eqt1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,theta)::T
-    s,t = st(q1,q2,vq,p1,p2,vp,theta)
+function eqt1(q1::Point,q2::Point,vq::Point,p1::Point,p2::Point,vp::Point,alpha)::T
+    s,t = st(q1,q2,vq,p1,p2,vp,alpha)
     return t-1  
 end
 
@@ -797,18 +801,18 @@ end
 """
 function checkPossibleEquality(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,
 
-Checks if it is you can rotate the segment `q1q2` so that it becomes part of the same line as segment `p1p2`. It returns a `true,phi` with `phi` the possible angle if its possible and `false,0` if it isn't.
+Checks if it is you can rotate the segment `q1q2` so that it becomes part of the same line as segment `p1p2`. It returns a `true,ang` with `ang` the possible angle if its possible and `false,0` if it isn't.
 """
-function checkPossibleEquality(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Tuple{Bool,T}
-    thetaq = atan(vq.y/vq.x)
-    thetap = atan(vp.y/vp.x)
-    phi = thetap - thetaq
+function checkPossibleEquality(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real)::Tuple{Bool,T}
+    ang_q = atan(vq.y/vq.x)
+    ang_p = atan(vp.y/vp.x)
+    ang = ang_p - ang_q
     # test if angle of paralellism is in interval of rotation
-    if angleTest(phi,theta)
+    if angleTest(ang,alpha)
         # using the `c` from the  `ax + by + c = 0` representation with (a,b,c) normalized  
         # to test if lines become the same at the angle they are parallel.
         # note that comparing the b from the y = mx + b fails for other cases
-        mat = zrotation(phi)
+        mat = zrotation(ang)
         q1 = mat*q1
         q2 = mat*q2
         vq = q2 - q1
@@ -816,7 +820,7 @@ function checkPossibleEquality(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
         nor1 = sqrt(pow2(a1) + pow2(b1) + pow2(c1))
         a2,b2,c2 = vp.x, -vp.y, vp.y*p1.x - vp.x*p1.y
         nor2 = sqrt(pow2(a2) + pow2(b2) + pow2(c2))
-        return isapprox(c1/nor1,c2/nor2,atol=1e-15), phi
+        return isapprox(c1/nor1,c2/nor2,atol=1e-15), ang
     end
     return false, 0
 end
@@ -825,7 +829,7 @@ end
 """
 function equalSegmentIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Bool
 
-Checks if it is you can rotate the segment `q1q2` so that it becomes part of the same line as segment `p1p2`. It returns a `true,phi` with `phi` the possible angle if its possible and `false,0` if it isn't.
+Checks if it is you can rotate the segment `q1q2` so that it becomes part of the same line as segment `p1p2`. It returns a `true,ang` with `ang` the possible angle if its possible and `false,0` if it isn't.
 """
 function equalSegmentIntersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point)::Bool
     # to se if they intersect, it is enough to check wheter theyr x or w intervals overlap
@@ -843,19 +847,19 @@ end
 # using IntervalRootFinding
 
 """
-case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Bool
+case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real)::Bool
 
-Checks if XY-contained segment `p1p2` and `q1q2` intersect when rotating the segment `q1q2` an angle `theta`. 
+Checks if XY-contained segment `p1p2` and `q1q2` intersect when rotating the segment `q1q2` an angle `alpha`. 
 
 It checks for the intersection by first checking if lines already intersect. If not, then the intersection must happen when rotating. If they become a part of the same line when rotating, then that is subcase 3.1 and must be treated specially.
     
-If they dont become part of the same line when rotating,then if they intersect they will  to intersect when endpoint must intersect with the other point. That is, for angle `phi`, the one of the equations `s=0,1` and `t=0,1` has a root in the interval `0,theta` or `theta,0`.
+If they dont become part of the same line when rotating,then if they intersect they will  to intersect when endpoint must intersect with the other point. That is, for angle `ang`, the one of the equations `s=0,1` and `t=0,1` has a root in the interval `0,alpha` or `alpha,0`.
 
 If the equations for `s` have an angle root, we must check that for that angle and for that intersection `t` is in ``0,1``. The same happens for when obtaining angles for the `t` equation: we must check that for that angle the `s` value is in `0,1`
 
 For the rootfinding of the system, the IntervalRootFinding.jl package in order to ensure that the numerical method is validated and that all of the roots are found. There is no need to check for all roots of each equation, it is enough to check for the maximum and minimum. 
 """
-function case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Bool
+function case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real)::Bool
     # we first check if lines already are at an intersection
     # this case should never happen but we add it for caution
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
@@ -865,12 +869,12 @@ function case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
     elseif firstFilter(p1,p2,vp,q1,q2,vq)
         # check if segments become part of the same line at one point
         #println("No se intersectan")
-        test,phi = checkPossibleEquality(p1,p2,vp,q1,q2,vq,theta)
+        test,ang = checkPossibleEquality(p1,p2,vp,q1,q2,vq,alpha)
         if test
             #println("Llegan a ser la misma linea")
             # they become part of the same line, 
             # intersection must be checked in a different way 
-            mat = zrotation(phi)
+            mat = zrotation(ang)
             q1prime = mat*q1
             q2prime = mat*q2
             #println("aca")
@@ -882,25 +886,25 @@ function case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
             gs = [eqs0,eqs1,eqt0,eqt1]
             boolFuncs = [boolFuncs0,boolFuncs1,boolFunct0,boolFunct1]
             for i in 1:4
-                func(phi) = gs[i](q1,q2,vq,p1,p2,vp,phi)
-                #thetas[i] = rootsAldo(func,1e-12)
+                func(ang) = gs[i](q1,q2,vq,p1,p2,vp,ang)
+                #alphas[i] = rootsAldo(func,1e-12)
                 angleRoots = IntervalRootFinding.roots(func,-pi..pi)
                 # converting from interval to float by taking midpoint
                 angleRoots = [midpoint_radius(a.interval)[1] for a in angleRoots]
                 # fixing choosing extremal angles
                 a,b = minimum(angleRoots), maximum(angleRoots)
-                for phi in (a,b)
-                #for phi in angleRoots
-                    if angleTest(phi,theta)
-                        s,t = st(q1,q2,vq,p1,p2,vp,phi)
+                for ang in (a,b)
+                #for ang in angleRoots
+                    if angleTest(ang,alpha)
+                        s,t = st(q1,q2,vq,p1,p2,vp,ang)
                         # the first two equations guarantee s=0,1 so we need to check for t
                         # the last two have t=0,1 so we need to check for s
                         secondTest = (i <= 2) ? (0 <= t <= 1) : 0 <= s <= 1
                         if secondTest
-                            #push!(angs,phi)
+                            #push!(angs,ang)
                             #push!(eqs,string(gs[i]))
-                            s1,t1 = st(q1,q2,vq,p1,p2,vp,phi+delta)
-                            s2,t2 = st(q1,q2,vq,p1,p2,vp,phi-delta)
+                            s1,t1 = st(q1,q2,vq,p1,p2,vp,ang+delta)
+                            s2,t2 = st(q1,q2,vq,p1,p2,vp,ang-delta)
                             if boolFuncs[i](s1,t1,s2,t2)
                                 return true
                             end
@@ -917,19 +921,19 @@ function case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
 end
 
 """
-case3IntersectionFast(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;n::Integer=1000)::Bool
+case3IntersectionFast(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;n::Integer=1000)::Bool
 
 Testing if the the surface obtained by rotating the segment `q1q2` intersects the `p1p2` segment by decomposing the surface as `n+1` line segments and checking if one of them intersects the `p1p2` segment.
 
 Before checking all the intersections, it checks for subcase 3.1: the segments become part of the same line at one point.
 """
-function case3IntersectionFast(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real;n::Integer=1000)::Bool
+function case3IntersectionFast(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;n::Integer=1000)::Bool
     if firstFilter(p1,p2,vp,q1,q2,vq)
-        test,phi = checkPossibleEquality(p1,p2,vp,q1,q2,vq,theta)
+        test,ang = checkPossibleEquality(p1,p2,vp,q1,q2,vq,alpha)
         if test
             # they become part of the same line, 
             # intersection must be checked in a different way 
-            mat = zrotation(phi)
+            mat = zrotation(ang)
             q1prime = mat*q1
             q2prime = mat*q2
             #println("aca")
@@ -937,10 +941,10 @@ function case3IntersectionFast(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
             #println("ya no")
         else
             flag = true
-            thetas = LinRange(0,theta,n)
+            alphas = LinRange(0,alpha,n)
             c = 1
             while c <= n && flag
-                s,t = st(q1,q2,vq,p1,p2,vp,thetas[c])
+                s,t = st(q1,q2,vq,p1,p2,vp,alphas[c])
                 flag = flag && ( t<0 || t>1 || s<0 || s>1) 
                 c += 1
             end
@@ -963,15 +967,15 @@ end
 
 #= 
 
-function experiment2(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)
+function experiment2(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real)
     if isapprox(vp.x,0,atol=1e-15)
-        thetap = pi/2
-        thetaq = atan(vq.y/vq.x)
-        phi = thetap - thetaq
+        alphap = pi/2
+        alphaq = atan(vq.y/vq.x)
+        ang = alphap - alphaq
         # test if angle of change to paralellism is in interval of rotation
-        if angleTest(phi,theta)
+        if angleTest(ang,alpha)
             # lines become parallel, time to test for 
-            b3x,b3y,m3x,m3y = bsms(q1,q2,vq,phi)
+            b3x,b3y,m3x,m3y = bsms(q1,q2,vq,ang)
             if isapprox(b3x,p1.x,atol=1e-15)
                 a,b = minmax(p1.y,p2.y)
                 c,d = minmax(b3y,b3y + m3y)
@@ -980,15 +984,15 @@ function experiment2(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point
         end
         return false
     else
-        thetaq = atan(vq.y/vq.x)
-        thetap = atan(vp.y/vp.x)
-        phi = thetap - thetaq
+        ang_q = atan(vq.y/vq.x)
+        ang_p = atan(vp.y/vp.x)
+        ang = ang_p - ang_q
         # test if angle of change of paralellism is in interval of rotatoion
         # lines become parallel at some point we need to test if they are the same line
-        if angleTest(phi,theta)
+        if angleTest(ang,alpha)
             # using the `b` from the  `y = mx + b` representation with (a,b,c) normalized  
             # to test if lines become the same at the angle they are parallel.
-            b3x,b3y,m3x,m3y = bsms(q1,q2,vq,phi)
+            b3x,b3y,m3x,m3y = bsms(q1,q2,vq,ang)
             bp,mp = bm(p1,p2,vp)
             mq = m3y/m3x
             bq = b3y - b3x*mq
@@ -1004,17 +1008,17 @@ function experiment2(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point
     end
 end
 
-function experiment3(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,theta::Real)::Bool
-    test,phi = checkPossibleEquality(vp,vq,theta)
+function experiment3(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real)::Bool
+    test,ang = checkPossibleEquality(vp,vq,alpha)
     if test
-        mat = zrotation(phi)
+        mat = zrotation(ang)
         q1prime = mat*q1
         q2prime = mat*q2
         # using the `c` from the  `ax + by + c = 0` representation with (a,b,c) normalized  
         # to test if lines become the same at the angle they are parallel.
         # note that comparing the b from the y = mx + b fails for other cases
         
-        b3x,b3y,m3x,m3y = bsms(q1,q2,vq,phi)
+        b3x,b3y,m3x,m3y = bsms(q1,q2,vq,ang)
         a1,b1,c1 = m3x, -m3y, m3y*b3x - m3x*b3y
         nor1 = sqrt(pow2(a1) + pow2(b1) + pow2(c1))
         a2,b2,c2 = vp.x, -vp.y, vp.y*p1.x - vp.x*p1.y
@@ -1041,7 +1045,7 @@ end
 =#
 
 
-function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,theta::Real;debug=false)
+function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,alpha::Real;debug=false)
     vp = p2-p1
     vq = q2-q1
     A = isapprox(vp.z,0,atol=1e-15)
@@ -1049,14 +1053,14 @@ function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,thet
     # case 1: the segments are not contained in an `xy` plane
     if !B
         debug && println("caso 1")
-        return case1Intersection(p1,p2,vp,q1,q2,vq,theta,debug=debug)
+        return case1Intersection(p1,p2,vp,q1,q2,vq,alpha,debug=debug)
     # case 2: the segment
     elseif !A && B
         debug && println("caso 2")
-        return case2Intersection(p1,p2,vp,q1,q2,vq,theta,debug=debug)
+        return case2Intersection(p1,p2,vp,q1,q2,vq,alpha,debug=debug)
     elseif A && B
         debug && println("caso 3")
-        return case3Intersection(p1,p2,vp,q1,q2,vq,theta,debug=debug)
+        return case3Intersection(p1,p2,vp,q1,q2,vq,alpha,debug=debug)
     end
 end
 
@@ -1070,40 +1074,95 @@ function planeRotationXY(u::Point)::Matrix
         #println("cache lo raros")
         return Matrix(1,0,0,0,1,0,0,0,1)
     else
-        theta = iangle(u,ez)
+        ang = iangle(u,ez)
         u = unitVector(cross(u,ez))
+        return rotation(ang,u)
+    end
+end
+
+function planeRotationYZ(u::Point)::Matrix
+    if isapprox(distance(ex,u),0,atol=1e-15)
+        #println("cache lo raros")
+        return Matrix(1,0,0,0,1,0,0,0,1)
+    else
+        theta = iangle(u,ex)
+        u = unitVector(cross(u,ex))
         return rotation(theta,u)
     end
 end
 
+function moveBeforeDihedral(P::PolygonalChain,i::Integer)::PolygonalChain
+    newP = copy(P)
+    n = length(P)
+    if 1 <= i <= n-2
+        u = unitVector(newP[i+2]-newP[i+1])
+        mat = planeRotationXY(u)
+        pivot = newP[i+2]
+        for j in 1:n+1
+            newP[j] = mat*(newP[j]-pivot)
+        end
+        return newP
+    else
+        error("i is not in range of dihedrals")
+    end
+end
 
-function checkRotationIntersection(P::AbstractChain,k::Integer,theta::Real;debug=false)::Bool
+function moveBeforeInternal(P::PolygonalChain,i::Integer)
+    newP = copy(P)
+    n = length(P)
+    if 1 <= i <= n-1
+        u = unitVector(newP[i]-newP[i+1])
+        mat1 = planeRotationYZ(u)
+        pivot = newP[i+1]
+        for j in 1:n+1
+            newP[j] = mat1*(newP[j]-pivot)
+        end
+        # second rotation
+        v = unitVector(newP[i+2])  # newP[i+1] = e0
+        n1 = cross(v,ex)
+        theta = atan(newP[i+2].y,newP[i+2].z)-pi/2
+        mat2 = xrotation(theta)
+        for j in 1:n+1
+            newP[j] = mat2*newP[j]
+        end
+        return newP
+    else
+        error("i is not in range of internals")
+    end
+end
+
+function checkRotationIntersection(P::AbstractChain,k::Integer,alpha::Real,internal::Bool;debug::Bool=false)::Bool
     n = length(P)
     flag = false
     # index of segments that will rotate
-    for i in k+2:n
+    i = internal ? k+1 : k+2
+    while i <= n && !flag
         # indexes of static semgments
-        suplim = i==k+2 ? k : k+1
-        for j in 1:suplim
+        suplim = internal ? k : (i==k+2 ? k : k+1)
+        j = 1
+        while j <= suplim && !flag
             debug && println("$i,$j")
             ep = 0.0
             vpj = P[j+1]-P[j]
             vpi = P[i+1]-P[i]
-            val = surfaceSegmentIntersection(P[j]-ep*vpj,P[j+1]+ep*vpj,P[i]-ep*vpi,P[i+1]+ep*vpi,theta,debug=debug)[1]
-            #if val
-            #    println(k)
-            #    println(i)
-            #    println(j)
-            #    println(theta)
-            #    println()
-            #end
-            flag = flag || val
+            inter = surfaceSegmentIntersection(P[j]-ep*vpj,P[j+1]+ep*vpj,P[i]-ep*vpi,P[i+1]+ep*vpi,alpha,debug=debug)[1]
+            if debug && inter
+                println("==========================")
+                println("INTERSECTION: ")
+                println(k)
+                println(i)
+                println(j)
+                println(alpha)
+                println()
+                println("=========================")
+            end
+            flag = flag || inter
+            j += 1
         end
+        i += 1
     end
     return flag
 end
-
-
 
 
 if abspath(PROGRAM_FILE) == @__FILE__

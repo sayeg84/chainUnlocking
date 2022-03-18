@@ -2,42 +2,8 @@ include("intersections.jl")
 
 using Statistics
 
-function moveBeforeDihedral(P::PolygonalNew,i::Integer)::PolygonalNew
-    newP = copy(P)
-    n = length(P)
-    if 1 <= i <= n-2
-        u = unitVector(newP[i+2]-newP[i+1])
-        mat = planeRotationXY(u)
-        pivot = newP[i+2]
-        for j in 1:n+1
-            newP[j] = mat*(newP[j]-pivot)
-        end
-        return newP
-    else
-        error("i is not in range of dihedrals")
-    end
-end
 
-
-function tryDihedralRotation!(P::PolygonalNew,i::Integer,theta::Real)
-    n = length(P)
-    Q = moveBeforeDihedral(P,i)
-    if 1 <= i < n-1
-        # TODO change to cells and make brute force
-        b = checkRotationIntersection(Q[1:i],Q[i+1:end],theta)
-        if b
-            dihedralRotate!(Q,i,theta)
-            return Q
-        else
-            println("Rotation by angle `theta' makes intersection")
-            return Q
-        end
-    else
-        error("``i is not between 1 and ``n")
-    end
-end
-
-function stair(n::Integer)::PolygonalNew
+function stair(n::Integer)::PolygonalChain
     #vertices = Array{Point,1}(undef,n+1)
     vertices = [e0 for i in 1:n+1]
     vertices[1] = e0
@@ -49,10 +15,10 @@ function stair(n::Integer)::PolygonalNew
             vertices[i] += vertices[i-1]+ ex
         end
     end
-    return PolygonalNew(vertices)
+    return PolygonalChain(vertices)
 end
 
-function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalNew
+function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalChain
     p0 = ex - ep*ey
     p1 = rotate(ez,-pi/6,ex)
     p2 = e0
@@ -62,10 +28,10 @@ function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalNew
     p0 = p1 + l*unitVector(p0-p1)
     p5 = p4 + l*unitVector(p5-p4)
     points = [p0,p1,p2,p3,p4,p5]
-    return PolygonalNew(points)
+    return PolygonalChain(points)
 end
 
-function fourKnot(l::Real=sqrt(2);ep::Real=0.1)::PolygonalNew
+function fourKnot(l::Real=sqrt(2);ep::Real=0.1)::PolygonalChain
     v0 = l*ey + ep*ex
     v1 = ep*ez
     v2 = ex
@@ -74,37 +40,31 @@ function fourKnot(l::Real=sqrt(2);ep::Real=0.1)::PolygonalNew
     v5 = e0
     v6 = l*ex + ep*ey + ep*ez
     vertices = [v0,v1,v2,v3,v4,v5,v6]
-    vertices = [v + 1e-8*Point() for v in vertices]
-    return PolygonalNew(vertices)
+    #vertices = [v + 1e-8*Point() for v in vertices]
+    return PolygonalChain(vertices)
 end
 
-function specialFourKnot(l::Real)
-    lens = [l,
-    1.004987562298722849408890214901055361931425979282918526119156087254962920273298,
-    1.00000000226243369146192035544669957446270825836325123794448610796686619212352,
-    1.004987562933413383428033431678022889015760626537798358069371055343601734278099,
-    1.004987567073009609066342932029642193954068146208149067846016218420630508130854,
-    l]
-
-    bangs = [1.47194398448371669793896388135898557276826523065884265078126701222164558584384,
-    1.570796322322649818227207283361371390463266234003886065151534797145906907524815,
-    1.570796331008887196734826615369530935086062870410539313134266400184915887936631,
-    1.560895168000374099116534838618404696821828134735125930758400472978549752254222,
-    1.47194398336526413907194178990238890098922789788403367854871276906808591597976
-    ]
-
-    dangs = [-0.5062448389601575633261897593642065187264524385583819841489466950024785757747657,
-    0.2937389014074404122267730211024880709092323612350519313211988016871684628681536,
-    0.4883005750177076976571177004239935526358678717800977632646927793862044102992856,
-   -0.1133286763791763805765895008885488726541521749169170366101020503790342061718179
-   ]
-   return PolygonalNew(lens,bangs,dangs)
+function exactFourKnot(l::Real)
+    ang1 = 0.012566
+    ang3 = ang1
+    ang2 = 0.131947
+    ang4 = ang2
+    v2 = ey
+    v3 = e0
+    v4 = ex
+    # first move
+    v1 = v2 + rotate(ex,ang1,-1*ey)
+    v0 = v1 + l*rotate(-1*ey,ang2,unitVector(v1-v2))
+    # second move
+    v5 = v4 + rotate(ey,ang3,-1*ex)
+    v6 = v5 + l*rotate(-1*ex,ang4,unitVector(v5-v4))
+    return PolygonalChain([v0,v1,v2,v3,v4,v5,v6])
 end
 
-function flatten(P::AbstractChain)::PolygonalNew
+function flatten(P::AbstractChain)::PolygonalChain
     lengths, angles, dihedrals = lengthsAndAngles(P)
     newDiheds = [pi for i in dihedrals]
-    return PolygonalNew(lengths,angles,newDiheds)
+    return PolygonalChain(lengths,angles,newDiheds)
 end
 
 function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
@@ -184,11 +144,36 @@ function tangentEnergyFrac(Q::AbstractChain)
     return tangentEnergy(Q,alpha=2,beta=4.5)
 end
 
+
+# we can use a single integer `k` to encode changes in both dihedral and internal angles
+# if the integer is of size 1 <= k <= n-3, then it representes a change in dihedral angle
+function generateAngleIndex(n::Integer,internal::Bool)::Integer
+    return internal ? rand(1:(2*n-3)) : rand(1:(n-2))
+end
+
+function mutateChain(P::AbstractChain,ang_idx::Integer,alpha::Real;debug::Bool=false)
+    n = length(P)
+    possible = false
+    if 1 <= ang_idx <= n-2
+        newP = moveBeforeDihedral(P,ang_idx)
+        possible = checkRotationIntersection(newP,ang_idx,alpha,false,debug=debug)
+        if possible; dihedralRotateFast!(newP,ang_idx,alpha); end;
+    elseif n-1 <= ang_idx <= 2*n-3
+        ang_idx = ang_idx - n + 2 # adjusting to be smaller 
+        newP = moveBeforeInternal(P,ang_idx)
+        possible = checkRotationIntersection(newP,ang_idx,alpha,true,debug=debug)
+        if possible; internalRotateFast!(newP,ang_idx,alpha); end;
+    else
+        error("index $(ang_idx) is not supported")
+    end
+    return possible,newP
+end
+
 function localRandomSearchStep(Q,newQ,inter_flag,c,minf_val,minf_newval,
-                               minvals,dihed,diheds,theta,angles)
+                               minvals,dihed,diheds,phi,angles)
     if !inter_flag && minf_newval < minf_val
         diheds[c] = dihed
-        angles[c] = theta
+        angles[c] = phi
         minvals[c] = minf_newval
         return minf_newval, newQ
     else
@@ -197,9 +182,9 @@ function localRandomSearchStep(Q,newQ,inter_flag,c,minf_val,minf_newval,
     end
 end
 
-function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,
-                             tolerance::Real,thetamax::Real,
-                             thetamin::Real,temp_init::Real,
+function basicSMetaheuristic(Q::PolygonalChain,minFunc::Function,
+                             tolerance::Real,phimax::Real,
+                             phimin::Real,temp_init::Real,
                              max_iter::Integer,
                              advanceFunc!::Function)
     # preprocessing
@@ -207,21 +192,22 @@ function basicSMetaheuristic(Q::PolygonalNew,minFunc::Function,
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int8,max_iter)
+
+    diheds = zeros(Int16,max_iter)
     angles = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
     minf_val = minFunc(Q)
     c = 1
     while minf_val > tolerance && c <= max_iter
-        theta = rand()*(thetamax-thetamin) + thetamin
+        phi = rand()*(phimax-phimin) + phimin
         dihed = rand(1:(nq-2))
         newQ = moveBeforeDihedral(Q,dihed)
-        inter_flag = checkRotationIntersection(newQ,dihed,theta)
-        newQ = dihedralRotate(newQ,dihed,theta)
+        inter_flag = checkRotationIntersection(newQ,dihed,phi)
+        newQ = dihedralRotate(newQ,dihed,phi)
         minf_newval = minFunc(newQ)
         minf_val,Q = advanceFunc!(Q,newQ,inter_flag,c,minf_val,minf_newval,
-                                  minvals,dihed,diheds,theta,angles)
+                                  minvals,dihed,diheds,phi,angles)
         c += 1
     end
     return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
@@ -229,54 +215,140 @@ end
 
 
 
-function localSearchRandom2(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
+function localRandomSearch2(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
     return basicSMetaheuristic(Q,minFunc,
-    tolerance,thetamax,
-    thetamin,temp_init,
+    tolerance,phimax,
+    phimin,temp_init,
     max_iter,localRandomSearchStep)
 end
 
 # `temp_init` argument is useless and only put for compatibility reasons
-function localSearchRandom(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2;temp_init=1,max_iter::Integer=1000)
+function localRandomSearch(Q::PolygonalChain,
+    minFunc::Function,
+    tolerance::Real=1e-2,
+    phimax::Real=pi/2,
+    phimin::Real=-pi/2,
+    internal::Bool=false;
+    temp_init::Float64=1.0,
+    temp_f::Float64=1e-4,
+    iter_per_temp::Integer=20,
+    max_iter::Integer=1000,
+    debug::Bool=false)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int8,max_iter)
-    angles = zeros(T,max_iter)
+    diheds  = zeros(Int16,max_iter)
+    angles  = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
     d = minFunc(Q)
     c = 1
     while d > tolerance && c <= max_iter
-        theta = rand()*(thetamax-thetamin) + thetamin
-        dihed = rand(1:(nq-2))
-        newQ = moveBeforeDihedral(Q,dihed)
-        inter_flag = checkRotationIntersection(newQ,dihed,theta)
-        newQ = dihedralRotate(newQ,dihed,theta)
-        dnew = minFunc(newQ)
-        if !inter_flag && dnew < d
-            Q = newQ
-            d = dnew
-            diheds[c] = dihed
-            angles[c] = theta
-            minvals[c] = dnew
+        phi = rand()*(phimax-phimin) + phimin
+        (internal) && (phi = phi/2)
+        dihed = generateAngleIndex(nq,internal)
+        inter_flag , newQ = mutateChain(Q,dihed,phi)
+        if !inter_flag
+            dnew = minFunc(newQ)
+            if dnew < d
+                Q = newQ
+                d = dnew
+                diheds[c] = dihed
+                angles[c] = phi
+                minvals[c] = dnew
+            end
         else
             minvals[c] = d
         end
         c += 1
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
+    c = c > max_iter ? max_iter : c
+    return Q,angles[1:c],diheds[1:c],minvals[1:c]
 end
 
-function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
+function linearTemperature(temp::Real,k::Integer;b::Float64=1e-2)
+    return temp - b
+end
+
+function exponentialTemperature(temp::Real,k::Integer;a::Float64=0.99)
+    return a*temp
+end
+
+function simulatedAnnealing(Q::PolygonalChain,
+    minFunc::Function,
+    tolerance::Real=1e-2,
+    phimax::Real=pi/2,
+    phimin::Real=-pi/2,
+    internal::Bool=false;
+    temp_init::Float64=1.0,
+    temp_f::Float64=1e-4,
+    iter_per_temp::Integer=20,
+    tempUpdate=exponentialTemperature,
+    max_iter::Integer=1000,
+    debug::Bool=false)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int8,max_iter)
+    diheds = zeros(Int16,max_iter)
+    angles = zeros(T,max_iter)
+    minvals = zeros(T,max_iter)
+    nq = length(Q)
+    d = minFunc(Q)
+    temp = temp_init*d
+    temp_f = temp_f*d 
+    c = 1
+    c2 = 1
+    while d > tolerance && c <= max_iter && temp > temp_f
+        for i in 1:iter_per_temp
+            phi = rand()*(phimax-phimin) + phimin
+            (internal) && (phi = phi/2)
+            dihed = generateAngleIndex(nq,internal)
+            inter_flag , newQ = mutateChain(Q,dihed,phi)
+            debug && println(c)
+            debug && println()
+            debug && println(i)
+            debug && println(Q)
+            debug && println(linkLengths(Q))
+            debug && println(newQ)
+            debug && println(linkLengths(newQ))
+            debug && println(c)
+            debug && println(inter_flag)
+            if !inter_flag
+                dnew = minFunc(newQ)
+                r = log(rand())
+                p = (-dnew + d)/temp
+                if r < p
+                    Q = newQ
+                    d = dnew
+                    diheds[c] = dihed
+                    angles[c] = phi
+                    minvals[c] = dnew
+
+                end
+            else
+                minvals[c] = d
+            end
+            c += 1
+        end
+        c2 += 1
+        temp = tempUpdate(temp,c2)
+    end
+    c = c > max_iter ? max_iter : c
+    return Q,angles[1:c],diheds[1:c],minvals[1:c]
+end
+
+#=
+function simulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
+    diheds = zeros(Int16,max_iter)
     angles = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
@@ -288,7 +360,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
     debug && println("mal aca")
     c = 1
     while d > tolerance && c <= max_iter
-        theta = rand()*(thetamax-thetamin) + thetamin
+        phi = rand()*(phimax-phimin) + phimin
         dihed = rand(1:(nq-2))
         debug && println(c)
         debug && println()
@@ -298,8 +370,8 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
         newQ = moveBeforeDihedral(Q,dihed)
         debug && println(newQ)
         debug && println(linkLengths(newQ))
-        inter_flag = checkRotationIntersection(newQ,dihed,theta)
-        newQ = dihedralRotate(newQ,dihed,theta)
+        inter_flag = checkRotationIntersection(newQ,dihed,phi)
+        newQ = dihedralRotate(newQ,dihed,phi)
         dnew = minFunc(newQ)
         debug && println(c)
         debug && println(inter_flag)
@@ -307,7 +379,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
             Q = newQ
             d = dnew
             diheds[c] = dihed
-            angles[c] = theta
+            angles[c] = phi
             minvals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
@@ -316,7 +388,7 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
                 Q = newQ
                 d = dnew
                 diheds[c] = dihed
-                angles[c] = theta
+                angles[c] = phi
                 minvals[c] = dnew
             else
                 minvals[c] = d
@@ -330,13 +402,13 @@ function simulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e
     return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
 end
 
-function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
+function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int8,max_iter)
+    diheds = zeros(Int16,max_iter)
     angles = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
@@ -358,9 +430,9 @@ function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::
         newQ = copy(Q)
         for i in 1:(nq-2)
             newQ = moveBeforeDihedral(newQ,i)
-            theta = rand()*(thetamax-thetamin) + thetamin
-            inter_flag = inter_flag || checkRotationIntersection(newQ,i,theta)
-            newQ = dihedralRotate(newQ,i,theta)
+            phi = rand()*(phimax-phimin) + phimin
+            inter_flag = inter_flag || checkRotationIntersection(newQ,i,phi)
+            newQ = dihedralRotate(newQ,i,phi)
         end
         debug && println(newQ)
         debug && println(linkLengths(newQ))
@@ -391,13 +463,13 @@ function specialSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::
 end
 
 
-function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::Real=1e-2,thetamax::Real=pi/2,thetamin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
+function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int8,max_iter)
+    diheds = zeros(Int16,max_iter)
     angles = zeros(T,max_iter)
     minvals = zeros(T,max_iter)
     nq = length(Q)
@@ -408,7 +480,7 @@ function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::R
     debug && println("mal aca")
     c = 1
     while d > tolerance && c <= max_iter
-        theta = rand()*(thetamax-thetamin) + thetamin
+        phi = rand()*(phimax-phimin) + phimin
         dihed = rand(1:(nq-2))
         debug && println(c)
         debug && println()
@@ -418,8 +490,8 @@ function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::R
         newQ = moveBeforeDihedral(Q,dihed)
         debug && println(newQ)
         debug && println(linkLengths(newQ))
-        inter_flag = checkRotationIntersection(newQ,dihed,theta)
-        newQ = dihedralRotate(newQ,dihed,theta)
+        inter_flag = checkRotationIntersection(newQ,dihed,phi)
+        newQ = dihedralRotate(newQ,dihed,phi)
         dnew = minFunc(newQ)
         debug && println(c)
         debug && println(inter_flag)
@@ -427,7 +499,7 @@ function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::R
             Q = newQ
             d = dnew
             diheds[c] = dihed
-            angles[c] = theta
+            angles[c] = phi
             minvals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
@@ -436,7 +508,7 @@ function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::R
                 Q = newQ
                 d = dnew
                 diheds[c] = dihed
-                angles[c] = theta
+                angles[c] = phi
                 minvals[c] = dnew
             else
                 minvals[c] = d
@@ -448,5 +520,7 @@ function linearSimulatedAnnealing(Q::PolygonalNew,minFunc::Function,tolerance::R
     end
     return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
 end
+=#
 
-
+if abspath(PROGRAM_FILE) == @__FILE__
+end

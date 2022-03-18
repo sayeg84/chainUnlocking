@@ -1,0 +1,43 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "julia",
+            "request": "launch",
+            "name": "Simple",
+            "cwd": "${workspaceFolder}/src",
+            "program": "${file}"
+        },
+        {
+            "type": "julia",
+            "request": "launch",
+            "name": "Test Simple",
+            "cwd": "${workspaceFolder}/src",
+            "program": "${workspaceFolder}/src/runSimple.jl",
+            "args": ["--lvals=5",
+                "--minFunc=squaredMaxSpan",
+                "--tolerance=-1.0",
+                "--max_iter=100"],
+            
+        },
+        {
+            "type": "julia",
+            "request": "launch",
+            "name": "Test Annealing",
+            "cwd": "${workspaceFolder}/src",
+            "program": "${workspaceFolder}/src/runSimple.jl",
+            "args": ["--lvals=5",
+                "--minFunc=demaineEnergy2",
+                "--tolerance=-1000.0",
+                "--max_iter=1000",
+                "--algorithm=simulatedAnnealing",
+                "--iter_per_temp=20",
+                "--internal"],
+            
+        }
+    ]
+}
