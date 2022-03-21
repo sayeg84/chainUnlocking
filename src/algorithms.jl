@@ -62,9 +62,9 @@ function exactFourKnot(l::Real)
 end
 
 function flatten(P::AbstractChain)::PolygonalChain
-    lengths, angles, dihedrals = lengthsAndAngles(P)
+    lengths, ang_vals, dihedrals = lengthsAndAngles(P)
     newDiheds = [pi for i in dihedrals]
-    return PolygonalChain(lengths,angles,newDiheds)
+    return PolygonalChain(lengths,ang_vals,newDiheds)
 end
 
 function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
@@ -145,7 +145,7 @@ function tangentEnergyFrac(Q::AbstractChain)
 end
 
 
-# we can use a single integer `k` to encode changes in both dihedral and internal angles
+# we can use a single integer `k` to encode changes in both dihedral and internal ang_vals
 # if the integer is of size 1 <= k <= n-3, then it representes a change in dihedral angle
 function generateAngleIndex(n::Integer,internal::Bool)::Integer
     return internal ? rand(1:(2*n-3)) : rand(1:(n-2))
@@ -170,14 +170,14 @@ function mutateChain(P::AbstractChain,ang_idx::Integer,alpha::Real;debug::Bool=f
 end
 
 function localRandomSearchStep(Q,newQ,inter_flag,c,minf_val,minf_newval,
-                               minvals,dihed,diheds,phi,angles)
+                               fun_vals,dihed,ang_idxs,phi,ang_vals)
     if !inter_flag && minf_newval < minf_val
-        diheds[c] = dihed
-        angles[c] = phi
-        minvals[c] = minf_newval
+        ang_idxs[c] = dihed
+        ang_vals[c] = phi
+        fun_vals[c] = minf_newval
         return minf_newval, newQ
     else
-        minvals[c] = minf_val
+        fun_vals[c] = minf_val
         return minf_val, Q
     end
 end
@@ -193,9 +193,9 @@ function basicSMetaheuristic(Q::PolygonalChain,minFunc::Function,
         minFunc = Q -> distToFlat(Q,auxQ)
     end
 
-    diheds = zeros(Int16,max_iter)
-    angles = zeros(T,max_iter)
-    minvals = zeros(T,max_iter)
+    ang_idxs = zeros(Int16,max_iter)
+    ang_vals = zeros(T,max_iter)
+    fun_vals = zeros(T,max_iter)
     nq = length(Q)
     minf_val = minFunc(Q)
     c = 1
@@ -207,10 +207,10 @@ function basicSMetaheuristic(Q::PolygonalChain,minFunc::Function,
         newQ = dihedralRotate(newQ,dihed,phi)
         minf_newval = minFunc(newQ)
         minf_val,Q = advanceFunc!(Q,newQ,inter_flag,c,minf_val,minf_newval,
-                                  minvals,dihed,diheds,phi,angles)
+                                  fun_vals,dihed,ang_idxs,phi,ang_vals)
         c += 1
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
+    return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals[1:(c-1)]
 end
 
 
@@ -239,9 +239,9 @@ function localRandomSearch(Q::PolygonalChain,
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds  = zeros(Int16,max_iter)
-    angles  = zeros(T,max_iter)
-    minvals = zeros(T,max_iter)
+    ang_idxs  = zeros(Int16,max_iter)
+    ang_vals  = zeros(T,max_iter)
+    fun_vals = zeros(T,max_iter)
     nq = length(Q)
     d = minFunc(Q)
     c = 1
@@ -255,17 +255,17 @@ function localRandomSearch(Q::PolygonalChain,
             if dnew < d
                 Q = newQ
                 d = dnew
-                diheds[c] = dihed
-                angles[c] = phi
-                minvals[c] = dnew
+                ang_idxs[c] = dihed
+                ang_vals[c] = phi
+                fun_vals[c] = dnew
             end
         else
-            minvals[c] = d
+            fun_vals[c] = d
         end
         c += 1
     end
     c = c > max_iter ? max_iter : c
-    return Q,angles[1:c],diheds[1:c],minvals[1:c]
+    return Q,ang_vals[1:c],ang_idxs[1:c],fun_vals[1:c]
 end
 
 function linearTemperature(temp::Real,k::Integer;b::Float64=1e-2)
@@ -293,9 +293,9 @@ function simulatedAnnealing(Q::PolygonalChain,
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int16,max_iter)
-    angles = zeros(T,max_iter)
-    minvals = zeros(T,max_iter)
+    ang_idxs = zeros(Int16,max_iter)
+    ang_vals = zeros(T,max_iter)
+    fun_vals = zeros(T,max_iter)
     nq = length(Q)
     d = minFunc(Q)
     temp = temp_init*d
@@ -324,13 +324,13 @@ function simulatedAnnealing(Q::PolygonalChain,
                 if r < p
                     Q = newQ
                     d = dnew
-                    diheds[c] = dihed
-                    angles[c] = phi
-                    minvals[c] = dnew
+                    ang_idxs[c] = dihed
+                    ang_vals[c] = phi
+                    fun_vals[c] = dnew
 
                 end
             else
-                minvals[c] = d
+                fun_vals[c] = d
             end
             c += 1
         end
@@ -338,7 +338,7 @@ function simulatedAnnealing(Q::PolygonalChain,
         temp = tempUpdate(temp,c2)
     end
     c = c > max_iter ? max_iter : c
-    return Q,angles[1:c],diheds[1:c],minvals[1:c]
+    return Q,ang_vals[1:c],ang_idxs[1:c],fun_vals[1:c]
 end
 
 #=
@@ -348,9 +348,9 @@ function simulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int16,max_iter)
-    angles = zeros(T,max_iter)
-    minvals = zeros(T,max_iter)
+    ang_idxs = zeros(Int16,max_iter)
+    ang_vals = zeros(T,max_iter)
+    fun_vals = zeros(T,max_iter)
     nq = length(Q)
     debug && println("bien aca")
     temp = temp_init*minFunc(Q)
@@ -378,28 +378,28 @@ function simulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=
         if !inter_flag && dnew < d
             Q = newQ
             d = dnew
-            diheds[c] = dihed
-            angles[c] = phi
-            minvals[c] = dnew
+            ang_idxs[c] = dihed
+            ang_vals[c] = phi
+            fun_vals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
             p = (-dnew + d)/temp
             if r < p
                 Q = newQ
                 d = dnew
-                diheds[c] = dihed
-                angles[c] = phi
-                minvals[c] = dnew
+                ang_idxs[c] = dihed
+                ang_vals[c] = phi
+                fun_vals[c] = dnew
             else
-                minvals[c] = d
+                fun_vals[c] = d
             end
         else
-            minvals[c] = d
+            fun_vals[c] = d
         end
         c += 1
         temp -= delta_temp
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
+    return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals[1:(c-1)]
 end
 
 function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
@@ -408,9 +408,9 @@ function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int16,max_iter)
-    angles = zeros(T,max_iter)
-    minvals = zeros(T,max_iter)
+    ang_idxs = zeros(Int16,max_iter)
+    ang_vals = zeros(T,max_iter)
+    fun_vals = zeros(T,max_iter)
     nq = length(Q)
     debug && println("bien aca")
     temp = temp_init*minFunc(Q)
@@ -442,24 +442,24 @@ function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance
         if !inter_flag && dnew < d
             Q = newQ
             d = dnew
-            minvals[c] = dnew
+            fun_vals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
             p = (-dnew + d)/temp
             if r < p
                 Q = newQ
                 d = dnew
-                minvals[c] = dnew
+                fun_vals[c] = dnew
             else
-                minvals[c] = d
+                fun_vals[c] = d
             end
         else
-            minvals[c] = d
+            fun_vals[c] = d
         end
         c += 1
         temp -= delta_temp
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals[1:(c-1)]
+    return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals[1:(c-1)]
 end
 
 
@@ -469,9 +469,9 @@ function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance:
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    diheds = zeros(Int16,max_iter)
-    angles = zeros(T,max_iter)
-    minvals = zeros(T,max_iter)
+    ang_idxs = zeros(Int16,max_iter)
+    ang_vals = zeros(T,max_iter)
+    fun_vals = zeros(T,max_iter)
     nq = length(Q)
     debug && println("bien aca")
     temp_range = range(temp_init*minFunc(Q),stop=1e-6,length=max_iter)
@@ -498,27 +498,27 @@ function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance:
         if !inter_flag && dnew < d
             Q = newQ
             d = dnew
-            diheds[c] = dihed
-            angles[c] = phi
-            minvals[c] = dnew
+            ang_idxs[c] = dihed
+            ang_vals[c] = phi
+            fun_vals[c] = dnew
         elseif !inter_flag && dnew >= d
             r = log(rand())
             p = (-dnew + d)/temp_range[c]
             if r < p
                 Q = newQ
                 d = dnew
-                diheds[c] = dihed
-                angles[c] = phi
-                minvals[c] = dnew
+                ang_idxs[c] = dihed
+                ang_vals[c] = phi
+                fun_vals[c] = dnew
             else
-                minvals[c] = d
+                fun_vals[c] = d
             end
         else
-            minvals[c] = d
+            fun_vals[c] = d
         end
         c += 1
     end
-    return Q,angles[1:(c-1)],diheds[1:(c-1)],minvals
+    return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals
 end
 =#
 

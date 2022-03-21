@@ -21,14 +21,14 @@ function saveChain(name::AbstractString,P::AbstractChain)
     end
 end
 
-function funcValues(Q,diheds,angles,minFunc,lastQ)
+function funcValues(Q,ang_idxs,ang_vals,minFunc,lastQ)
     newQ = copy(Q)
-    funcvals = zeros(T,length(angles))
+    funcvals = zeros(T,length(ang_vals))
     funcvals[1] = minFunc(newQ)
-    for i in 1:(length(angles)-1)
-        if diheds[i]!= 0
-            newQ = moveBeforeDihedral(newQ,diheds[i])
-            rotate!(newQ,diheds[i],angles[i])
+    for i in 1:(length(ang_vals)-1)
+        if ang_idxs[i]!= 0
+            newQ = moveBeforeDihedral(newQ,ang_idxs[i])
+            rotate!(newQ,ang_idxs[i],ang_vals[i])
         end
         funcvals[i+1] = minFunc(newQ)
     end
@@ -40,7 +40,7 @@ function funcValues(Q,diheds,angles,minFunc,lastQ)
 end
 
 
-function saveTrajectory(name,Q::AbstractChain,angles,diheds)
+function saveTrajectory(name,Q::AbstractChain,ang_vals,ang_idxs)
     ns = length(Q)+1
     nzeros = Int(ceil(log10(ns+1)))
     # padding the number with zeros to the right in order to have no problems if sorting
@@ -57,9 +57,9 @@ function saveTrajectory(name,Q::AbstractChain,angles,diheds)
         coordinates = join(coordinates,",")
         coordinates = string(coordinates,"\n")
         write(io,coordinates)
-        for i in 1:length(angles)
-            if diheds[i]!= 0 
-                rotate!(newQ,diheds[i],angles[i])
+        for i in 1:length(ang_vals)
+            if ang_idxs[i]!= 0 
+                rotate!(newQ,ang_idxs[i],ang_vals[i])
                 arr = toArray(newQ)
                 coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
                 coordinates = join(coordinates,",")
@@ -70,17 +70,17 @@ function saveTrajectory(name,Q::AbstractChain,angles,diheds)
     end
 end
 
-function saveSimulation(name,Q,lastQ,angles,diheds;saveTrajec=true)
+function saveSimulation(name,Q,lastQ,ang_vals,ang_idxs;saveTrajec=true)
     saveChain(string(name,"_Q.csv"),Q)
     saveChain(string(name,"_lastQ.csv"),lastQ)
     if saveTrajec
-        saveTrajectory(string(name,"_trajectory.csv"),Q,angles,diheds)
+        saveTrajectory(string(name,"_trajectory.csv"),Q,ang_vals,ang_idxs)
     end
-    open(string(name,"_angles-indexes.csv"),"w+") do io
-        DelimitedFiles.writedlm(io,diheds,',')
+    open(string(name,"_ang_idxs.csv"),"w+") do io
+        DelimitedFiles.writedlm(io,ang_idxs,',')
     end
-    open(string(name,"_angles-values.csv"),"w+") do io
-        DelimitedFiles.writedlm(io,angles,',')
+    open(string(name,"_ang_vals.csv"),"w+") do io
+        DelimitedFiles.writedlm(io,ang_vals,',')
     end
 end
 
@@ -109,11 +109,11 @@ end
 function readSingleSimulation(name::AbstractString)
     Q = readChain(string(name,"_Q.csv"))
     lastQ = readChain(string(name,"_lastQ.csv"))
-    diheds = DelimitedFiles.readdlm(string(name,"_angles-indexes.csv"),',',Int16)
-    diheds = reshape(diheds,length(diheds))
-    angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"),',',T)
-    angles = reshape(angles,length(angles))
-    return Q, lastQ, diheds, angles
+    ang_idxs = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
+    ang_idxs = reshape(ang_idxs,length(ang_idxs))
+    ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',T)
+    ang_vals = reshape(ang_vals,length(ang_vals))
+    return Q, lastQ, ang_idxs, ang_vals
 end
 
 
@@ -170,20 +170,20 @@ function readLSimulation(name::AbstractString,burnout::Real; verbose::Bool=true)
         for (j,iter) in enumerate(iterations)
             verbose && println("reading simulation $(sim),$(iter)")
             lastQ  = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
-            diheds = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_angles-indexes.csv")),',',Int16)
-            diheds = reshape(diheds,length(diheds))
-            ts_sim[j]        = length(diheds)
-            ts_table[i,j]    = length(diheds)
+            ang_idxs = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_ang_idxs.csv")),',',Int16)
+            ang_idxs = reshape(ang_idxs,length(ang_idxs))
+            ts_sim[j]        = length(ang_idxs)
+            ts_table[i,j]    = length(ang_idxs)
             if burnout < 1
-                minvals = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_minvals")),',',T)
-                ncut    = Int(ceil(burnout*length(diheds)))
-                minfs_sim[j]     = Statistics.mean(minvals[ncut:end])
-                minfs_table[i,j] = Statistics.mean(minvals[ncut:end])
+                fun_vals = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_fun_vals")),',',T)
+                ncut    = Int(ceil(burnout*length(ang_idxs)))
+                minfs_sim[j]     = Statistics.mean(fun_vals[ncut:end])
+                minfs_table[i,j] = Statistics.mean(fun_vals[ncut:end])
             else
                 minfs_sim[j]     = minFunc(lastQ)
                 minfs_table[i,j] = minFunc(lastQ)
             end
-            accepted_moves_table[i,j] = length([k for k in diheds if k!=0])
+            accepted_moves_table[i,j] = length([k for k in ang_idxs if k!=0])
         end
         ts_mean[i] = Statistics.mean(ts_sim)
         ts_error[i] = Statistics.std(ts_sim)
@@ -197,9 +197,9 @@ end
 
 function makeCoordinates(name)
     Q = readChain(string(name,"_Q.csv"))
-    angles = DelimitedFiles.readdlm(string(name,"_angles-values.csv"))
-    angles = reshape(angles,length(angles))
-    diheds = DelimitedFiles.readdlm(string(name,"_angles-indexes.csv"),',',Int16)
-    diheds = reshape(diheds,length(diheds))
-    saveTrajectory(string(name,"_trajectory.csv"),Q,angles,diheds)
+    ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"))
+    ang_vals = reshape(ang_vals,length(ang_vals))
+    ang_idxs = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
+    ang_idxs = reshape(ang_idxs,length(ang_idxs))
+    saveTrajectory(string(name,"_trajectory.csv"),Q,ang_vals,ang_idxs)
  end

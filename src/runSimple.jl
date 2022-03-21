@@ -16,7 +16,7 @@ function lsimulationPar(ls,indep_simuls::Integer,angmax::Real=pi/20,angmin::Real
         for j in 1:indep_simuls
             Q = chainFunc(ls[i])
             #println("creacion ok")
-            lastQ, angles, diheds, minvals = algoFunc(Q,
+            lastQ, ang_vals, ang_idxs, fun_vals = algoFunc(Q,
                 minFunc,
                 parsed_args["tolerance"],
                 angmax,
@@ -38,10 +38,10 @@ function lsimulationPar(ls,indep_simuls::Integer,angmax::Real=pi/20,angmin::Real
                 n1 = lpad(i,n1zeros,'0')
                 n2zeros = Int(ceil(log10(indep_simuls+1)))
                 n2 = lpad(j,n2zeros,"0")
-                saveSimulation(joinpath(savename,string(n1,"_",n2,)),Q,lastQ,angles,diheds,saveTrajec=false)
+                saveSimulation(joinpath(savename,string(n1,"_",n2,)),Q,lastQ,ang_vals,ang_idxs,saveTrajec=false)
             end
             
-            temp_ts[j] = length(diheds)
+            temp_ts[j] = length(ang_idxs)
 	    #println(temp_ts[j])
             temp_minfs[j] = minFunc(lastQ)
 	    #println(temp_minfs[j])

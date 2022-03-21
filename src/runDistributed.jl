@@ -19,9 +19,9 @@ end
 
 function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;savename="")
     n = length(ls)
-    minfs_mean = SharedArray(zeros(n))
+    minfs_mean  = SharedArray(zeros(n))
     minfs_error = SharedArray(zeros(n))
-    ts_mean = SharedArray(zeros(n))
+    ts_mean  = SharedArray(zeros(n))
     ts_error = SharedArray(zeros(n))
     @sync @distributed for i in 1:n
         temp_minfs = zeros(iter)
@@ -29,7 +29,17 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         for j in 1:iter
             Q = chainFunc(ls[i])
             #println("creacion ok")
-            lastQ, angles, diheds, minvals = algoFunc(Q,minFunc,parsed_args["tolerance"],angmax,angmin,temp_init=parsed_args["temp_init"],max_iter=parsed_args["max_iter"])
+            lastQ, ang_vals, ang_idxs, fun_vals = algoFunc(Q,
+                minFunc,
+                parsed_args["tolerance"],
+                angmax,
+                angmin,
+                parsed_args["internal"],
+                temp_init=parsed_args["temp_init"],
+                temp_f=parsed_args["temp_f"],
+                iter_per_temp=parsed_args["iter_per_temp"],
+                max_iter=parsed_args["max_iter"]
+            )
             nwork = myid()-1
             if nwork==1
                 per = round(((i-1)*iter+(j-1))*parsed_args["processes"]*100/(parsed_args["indep_simuls"]*n); digits= 2)
@@ -44,12 +54,12 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
                 n1 = lpad(i,n1zeros,'0')
                 n2zeros = Int(ceil(log10(iter+1)))
                 n2 = lpad(j,n2zeros,"0")
-                saveSimulation(joinpath(savename,string(n1,"_",n2)),Q,lastQ,angles,diheds,saveTrajec=false)
-                open(joinpath(savename,string(n1,"_",n2,"_minvals")),"w+") do io
-                    DelimitedFiles.writedlm(io,minvals,',')
+                saveSimulation(joinpath(savename,string(n1,"_",n2)),Q,lastQ,ang_vals,ang_idxs,saveTrajec=false)
+                open(joinpath(savename,string(n1,"_",n2,"_fun_vals")),"w+") do io
+                    DelimitedFiles.writedlm(io,fun_vals,',')
                 end
             end
-            temp_ts[j] = length(diheds)
+            temp_ts[j] = length(ang_idxs)
 	    #println(temp_ts[j])
             temp_minfs[j] = minFunc(lastQ)
 	    #println(temp_minfs[j])
@@ -89,7 +99,7 @@ function main()
     savefig(joinpath(parsed_args["path"],"lsimulation.pdf"))
 end
 
-if abspath(PROGRAM_FILE) == @__FILE__
-    using Plots
-    main()    
-end
+using Plots
+println("Distributed simulator")
+println()
+main()    

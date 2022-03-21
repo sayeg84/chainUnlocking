@@ -1,12 +1,13 @@
-include("types.jl")
 
-struct Hyperdual
+struct Hyperdual{T<:Real}
     a0::T
     a1::T
     a2::T
     a3::T
-    Hyperdual() = new()
-    Hyperdual(a0,a1,a2,a3) = new(a0,a1,a2,a3)
+    Hyperdual{T}() where {T<:Real} = new()
+    Hyperdual{T}(a0,a1,a2,a3) where {T<:Real} = new(a0,a1,a2,a3)
+    Hyperdual(a0::AbstractIrrational,a1,a2,a3) = Hyperdual{Float64}(a0,a1,a2,a3)
+    Hyperdual(a0,a1,a2,a3) = Hyperdual{typeof(a0)}(a0,a1,a2,a3)
 end
 
 function Base.abs(x::Hyperdual)
@@ -302,6 +303,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
     y = Hyperdual(5,6,7,8)
     z = Hyperdual(2,0,0,0)
     w = Hyperdual(pi,2*pi,0,0)
+    w = Hyperdual(3.0,2*pi,0,0)
+    w = Hyperdual(3.0,BigFloat(2*pi),0,0)
     u = Hyperdual(0.5,0.5,0.5,0.5)
     println(x+y)
     println(x-y)
