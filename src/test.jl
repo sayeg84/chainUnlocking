@@ -148,9 +148,9 @@ end
 function testPolygonal(n)
     lengths = rand(T,n)
     angles = pi*rand(T,n-1)
-    dihed = pi*([2*rand(T)-1 for i in 1:n-2])
-    P = PolygonalOld(lengths,angles,dihed)
-    Q = PolygonalChainRosetta(lengths,angles,dihed)
+    diheds = pi*([2*rand(T)-1 for i in 1:n-2])
+    P = PolygonalOld(lengths,angles,diheds)
+    Q = PolygonalChainRosetta(lengths,angles,diheds)
     e = rmsd(P,Q)
     println(e)
     if e < 1e-3
@@ -340,6 +340,12 @@ function plotPointRotation!(p::Point,alpha::Real;lw::Real=1,color="black",alpha_
 end
 
 function plotChain!(P::AbstractChain,c="red",lw=2)
+    arr = toArray(P)
+    scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",markersize=3)
+    plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
+end
+
+function plotChainSeries!(P::AbstractChain,c="red",lw=2)
     arr = toArray(P)
     scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=c,markersize=3)
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)

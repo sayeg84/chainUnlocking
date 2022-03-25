@@ -428,22 +428,6 @@ function optimalRotation(P::AbstractChain,Q::AbstractChain)::Matrix
     A = toArray(P)
     B = toArray(Q)
     H = transpose(A)*B
-    #println("Aca")
-    #=
-    if T == BigFloat
-        display(A)
-        println()
-        display(B)
-        println()
-        println("Big")
-        display(H)
-        println()
-        S = GenericLinearAlgebra.svd(H,full=false)    
-        println("No salgo")
-    else
-        S = LinearAlgebra.svd(H)    
-    end
-    =#
     S = LinearAlgebra.svd(Float64.(H))
     d = sign(LinearAlgebra.det(transpose(S.U*S.Vt)))
     mat = transpose(S.Vt)*[1.0 0.0 0.0 ; 0.0 1.0 0.0 ; 0.0 0.0 d ]*transpose(S.U)
@@ -609,7 +593,7 @@ by `moveBeforeDihedral`
 function dihedralRotateFast(P::PolygonalChain,i::Integer,phi::Real)::PolygonalChain
     n = length(P)
     if 1 <= i <= n-2
-        rotMat = xrotation(phi)
+        rotMat = zrotation(phi)
         points = [p for p in P.vertices]
         for j in i+3:n+1
             points[j] = rotMat*(points[j]-P[i+2]) + P[i+2]
@@ -639,7 +623,7 @@ end
 function dihedralRotateFast!(P::PolygonalChain,i::Integer,phi::Real)
     n = length(P)
     if 1 <= i <= n-2
-        rotMat = xrotation(phi)
+        rotMat = zrotation(phi)
         for j in i+3:n+1
             P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
         end
@@ -670,7 +654,7 @@ by `moveBeforeInternal`
 function internalRotateFast(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
     n = length(P)
     if 1 <= i <= n-1
-        rotMat = xrotation(theta)
+        rotMat = zrotation(theta)
         points = [p for p in P.vertices]
         for j in i+2:n+1
             points[j] = rotMat*(points[j]-P[i+1]) + P[i+1]
@@ -702,7 +686,7 @@ end
 function internalRotateFast!(P::PolygonalChain,i::Integer,theta::Real)
     n = length(P)
     if 1 <= i <= n-1
-        rotMat = xrotation(theta)
+        rotMat = zrotation(theta)
         for j in i+2:n+1
             P[j] = rotMat*(P[j]-P[i+1]) + P[i+1]
         end
@@ -714,16 +698,16 @@ end
 function polygonal(n)
     lengths = rand(T,n)
     angles = pi*rand(T,n-1)
-    dihed = pi*([2*rand(T)-1 for i in 1:n-2])
-    P = PolygonalOld(lengths,angles,dihed)
+    diheds = pi*([2*rand(T)-1 for i in 1:n-2])
+    P = PolygonalOld(lengths,angles,diheds)
     return P
 end
 
 function polygonal2(n)
     lengths = rand(T,n)
     angles = pi*rand(T,n-1)
-    dihed = pi*([2*rand(T)-1 for i in 1:n-2])
-    P = PolygonalChainRosetta(lengths,angles,dihed)
+    diheds = pi*([2*rand(T)-1 for i in 1:n-2])
+    P = PolygonalChainRosetta(lengths,angles,diheds)
     return P
 end
 

@@ -1,4 +1,3 @@
-include("algorithms.jl")
 include("io.jl")
 
 using Plots, DelimitedFiles, ArgParse

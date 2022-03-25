@@ -28,7 +28,7 @@ function lsimulationPar(ls,iter::Integer,angmax::Real=pi/20,angmin::Real=-pi/20;
         temp_ts = zeros(iter)
         for j in 1:iter
             Q = chainFunc(ls[i])
-            #println("creacion ok")
+            #println("creation ok")
             lastQ, ang_vals, ang_idxs, fun_vals = algoFunc(Q,
                 minFunc,
                 parsed_args["tolerance"],

@@ -15,7 +15,7 @@ function lsimulationPar(ls,indep_simuls::Integer,angmax::Real=pi/20,angmin::Real
         temp_ts = zeros(indep_simuls)
         for j in 1:indep_simuls
             Q = chainFunc(ls[i])
-            #println("creacion ok")
+            #println("Creation ok")
             lastQ, ang_vals, ang_idxs, fun_vals = algoFunc(Q,
                 minFunc,
                 parsed_args["tolerance"],
@@ -25,7 +25,8 @@ function lsimulationPar(ls,indep_simuls::Integer,angmax::Real=pi/20,angmin::Real
                 temp_init=parsed_args["temp_init"],
                 temp_f=parsed_args["temp_f"],
                 iter_per_temp=parsed_args["iter_per_temp"],
-                max_iter=parsed_args["max_iter"]
+                max_iter=parsed_args["max_iter"],
+                debug=parsed_args["debug"]
             )
             per = round(((i-1)*indep_simuls+(j-1))*100/(parsed_args["indep_simuls"]*n); digits= 2)
             prog = "Progress: $(per) % "

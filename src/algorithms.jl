@@ -153,27 +153,27 @@ end
 
 function mutateChain(P::AbstractChain,ang_idx::Integer,alpha::Real;debug::Bool=false)
     n = length(P)
-    possible = false
+    intersection = false
     if 1 <= ang_idx <= n-2
         newP = moveBeforeDihedral(P,ang_idx)
-        possible = checkRotationIntersection(newP,ang_idx,alpha,false,debug=debug)
-        if possible; dihedralRotateFast!(newP,ang_idx,alpha); end;
+        intersection = checkRotationIntersection(newP,ang_idx,alpha,false,debug=debug)
+        if !intersection; dihedralRotateFast!(newP,ang_idx,alpha); end;
     elseif n-1 <= ang_idx <= 2*n-3
-        ang_idx = ang_idx - n + 2 # adjusting to be smaller 
+        ang_idx = ang_idx - n + 2 # adjusting to be in range 
         newP = moveBeforeInternal(P,ang_idx)
-        possible = checkRotationIntersection(newP,ang_idx,alpha,true,debug=debug)
-        if possible; internalRotateFast!(newP,ang_idx,alpha); end;
+        intersection = checkRotationIntersection(newP,ang_idx,alpha,true,debug=debug)
+        if !intersection; internalRotateFast!(newP,ang_idx,alpha); end;
     else
         error("index $(ang_idx) is not supported")
     end
-    return possible,newP
+    return intersection,newP
 end
 
 function localRandomSearchStep(Q,newQ,inter_flag,c,minf_val,minf_newval,
-                               fun_vals,dihed,ang_idxs,phi,ang_vals)
+                               fun_vals,ang_idx,ang_idxs,alpha,ang_vals)
     if !inter_flag && minf_newval < minf_val
-        ang_idxs[c] = dihed
-        ang_vals[c] = phi
+        ang_idxs[c] = ang_idx
+        ang_vals[c] = alpha
         fun_vals[c] = minf_newval
         return minf_newval, newQ
     else
@@ -201,13 +201,13 @@ function basicSMetaheuristic(Q::PolygonalChain,minFunc::Function,
     c = 1
     while minf_val > tolerance && c <= max_iter
         phi = rand()*(phimax-phimin) + phimin
-        dihed = rand(1:(nq-2))
-        newQ = moveBeforeDihedral(Q,dihed)
-        inter_flag = checkRotationIntersection(newQ,dihed,phi)
-        newQ = dihedralRotate(newQ,dihed,phi)
+        ang_idx = rand(1:(nq-2))
+        newQ = moveBeforeDihedral(Q,ang_idx)
+        inter_flag = checkRotationIntersection(newQ,ang_idx,phi)
+        newQ = dihedralRotate(newQ,ang_idx,phi)
         minf_newval = minFunc(newQ)
         minf_val,Q = advanceFunc!(Q,newQ,inter_flag,c,minf_val,minf_newval,
-                                  fun_vals,dihed,ang_idxs,phi,ang_vals)
+                                  fun_vals,ang_idx,ang_idxs,phi,ang_vals)
         c += 1
     end
     return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals[1:(c-1)]
@@ -226,8 +226,8 @@ end
 function localRandomSearch(Q::PolygonalChain,
     minFunc::Function,
     tolerance::Real=1e-2,
-    phimax::Real=pi/2,
-    phimin::Real=-pi/2,
+    alphamax::Real=pi/2,
+    alphamin::Real=-pi/2,
     internal::Bool=false;
     temp_init::Float64=1.0,
     temp_f::Float64=1e-4,
@@ -246,17 +246,17 @@ function localRandomSearch(Q::PolygonalChain,
     d = minFunc(Q)
     c = 1
     while d > tolerance && c <= max_iter
-        phi = rand()*(phimax-phimin) + phimin
-        (internal) && (phi = phi/2)
-        dihed = generateAngleIndex(nq,internal)
-        inter_flag , newQ = mutateChain(Q,dihed,phi)
+        alpha = rand()*(alphamax-alphamin) + alphamin
+        (internal) && (alpha = alpha/2)
+        ang_idx = generateAngleIndex(nq,internal)
+        inter_flag , newQ = mutateChain(Q,ang_idx,alpha)
         if !inter_flag
             dnew = minFunc(newQ)
             if dnew < d
                 Q = newQ
                 d = dnew
-                ang_idxs[c] = dihed
-                ang_vals[c] = phi
+                ang_idxs[c] = ang_idx
+                ang_vals[c] = alpha
                 fun_vals[c] = dnew
             end
         else
@@ -279,8 +279,8 @@ end
 function simulatedAnnealing(Q::PolygonalChain,
     minFunc::Function,
     tolerance::Real=1e-2,
-    phimax::Real=pi/2,
-    phimin::Real=-pi/2,
+    alphamax::Real=pi/2,
+    alphamin::Real=-pi/2,
     internal::Bool=false;
     temp_init::Float64=1.0,
     temp_f::Float64=1e-4,
@@ -304,28 +304,40 @@ function simulatedAnnealing(Q::PolygonalChain,
     c2 = 1
     while d > tolerance && c <= max_iter && temp > temp_f
         for i in 1:iter_per_temp
-            phi = rand()*(phimax-phimin) + phimin
-            (internal) && (phi = phi/2)
-            dihed = generateAngleIndex(nq,internal)
-            inter_flag , newQ = mutateChain(Q,dihed,phi)
-            debug && println(c)
-            debug && println()
-            debug && println(i)
-            debug && println(Q)
-            debug && println(linkLengths(Q))
-            debug && println(newQ)
-            debug && println(linkLengths(newQ))
-            debug && println(c)
-            debug && println(inter_flag)
+            alpha = rand()*(alphamax-alphamin) + alphamin
+            (internal) && (alpha = alpha/2)
+            ang_idx = generateAngleIndex(nq,internal)
+            if debug
+                println("c = $c")
+                println("c2 = $(c2)")
+                println("i = $i")
+                println("Q = $Q")
+                println("ang_idx = $(ang_idx)")
+                println("ang_val  = $(alpha)")
+                println("# testing intersection")
+                println("\n")
+            end
+            inter_flag,newQ = mutateChain(Q,ang_idx,alpha,debug=debug)
+            debug && println("inter  = $(inter_flag)")
+            debug && println("newQ = $(newQ)")
             if !inter_flag
+                
                 dnew = minFunc(newQ)
                 r = log(rand())
                 p = (-dnew + d)/temp
+                if debug
+                    println("# no inter")
+                    println("d = $d")
+                    println("dnew = $(dnew)")
+                    println("p = $p")
+                    println("r = $r")
+                end
                 if r < p
+                    debug && println("# accepted")
                     Q = newQ
                     d = dnew
-                    ang_idxs[c] = dihed
-                    ang_vals[c] = phi
+                    ang_idxs[c] = ang_idx
+                    ang_vals[c] = alpha
                     fun_vals[c] = dnew
 
                 end
@@ -333,6 +345,7 @@ function simulatedAnnealing(Q::PolygonalChain,
                 fun_vals[c] = d
             end
             c += 1
+            debug && println("\n\n")
         end
         c2 += 1
         temp = tempUpdate(temp,c2)

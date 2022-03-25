@@ -130,8 +130,10 @@ function readLSimulation(name::AbstractString,burnout::Real; verbose::Bool=true)
     ls = reshape(ls,length(ls))
     ln = length(ls)
     metaParams = readMetaParams(name)
-    verbose && println("minimizing function")
-    verbose && println(metaParams["minFunc"])
+    if verbose
+        println("Minimizing function")
+        println(metaParams["minFunc"])
+    end
     minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
     simuls  = [file for file in readdir(name)]
     # saving `_lastQ.csv` files values
@@ -148,13 +150,14 @@ function readLSimulation(name::AbstractString,burnout::Real; verbose::Bool=true)
     minfs_mean  = zeros(ln)
     minfs_error = zeros(ln)
     tentativeIters = div(lt,ln,RoundUp)
-    verbose && println("Diferent simulations")
-    verbose && println(lt)
-    verbose && println("L vals")
-    verbose && println(ln)
-    verbose && println("Assumed iterations")
-    verbose && println(tentativeIters)
-
+    if verbose
+        println("Different simulations")
+        println(lt)
+        println("L vals")
+        println(ln)
+        println("Assumed iterations")
+        println(tentativeIters)
+    end
     ts_table             = zeros(ln,tentativeIters)
     minfs_table          = zeros(ln,tentativeIters)
     accepted_moves_table = zeros(ln,tentativeIters)

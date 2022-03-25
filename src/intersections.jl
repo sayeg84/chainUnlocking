@@ -409,23 +409,27 @@ It returns a tuple `a,p` where `a` is a Bool saying if there is intersection and
 function case1CheckRoot(t::T,p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;debug=false)::Tuple{Bool,Point}
     # checking the intersection is within the segment
     if 0 <= t <= 1
-        debug && println("la raíz esta bien")
+        debug && println("# roots are fine")
         # a,b is the interval of z values for the q1-q2 segment
         a,b = minmax(q1.z,q2.z)
         inp = p1 + t*vp
-        debug && println(inp)
-        debug && println("$a,$b")
-        debug && ((s,ang) = getParameters(t,p1,p2,vp,q1,q2,vq) )
-        debug && println(s)
-        debug && println(ang)
+        if debug
+            println(inp)
+            println("minmax(q1.z,q2.z) = $a,$b")
+            ((s,ang) = getParameters(t,p1,p2,vp,q1,q2,vq) )
+            println("s = $s")
+            println("ang = $(ang)")
+        end
         # check intersection only if z value is in interval
         if a <= inp.z <= b 
-            debug && println("en z está bien")
             s,ang = getParameters(t,p1,p2,vp,q1,q2,vq)
-            debug && println(s)
-            debug && println(ang)
-            debug && println(0 <= s <= 1)
-            debug && println(angleTest(ang,alpha))
+            if debug
+                println("# in z is fine")
+                println("s = $s")
+                println("ang = $(ang)")
+                println(0 <= s <= 1)
+                println(angleTest(ang,alpha))
+            end
             if 0 <= s <= 1 && angleTest(ang,alpha)
                 return true, inp
             end
@@ -636,29 +640,34 @@ function checkSegmentCircleIntersection(roots,p1::Point,p2::Point,vp::Point,q::P
     end
 end
 
-function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha;debug=false)
+function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq::Point,alpha::Real;debug=false)
     # segments already intersect
     # this should never happen in practice but we add it for debugging reasons
-    # println("dentro caso 3")
+    # println("inside case 3")
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
-        debug && println("WARNING: segments intersect before rotating")
+        debug && println("# WARNING: segments intersect before rotating")
         return true
     # only test for intersection if points are in the same interval        
     elseif isapprox(p1.z,q1.z,atol=1e-15)
-        debug && println("primera pasada")
+        debug && println("# special case")
+        if (distance(p1,q1)<1e-40 || distance(p1,q2)<1e-40 || distance(p2,q1)<1e-40 || distance(p2,q2)<1e-40)
+            debug && println("# special special case: endopoints coincide")
+
+        end
+        debug && println("# first pass")
         for q in (q1,q2)
             r = norm(q)
             roots = segmentCircleIntersection(p1,p2,vp,r)
             debug && println(roots)
-            if roots[1]==2 && ((roots[2]==1 && roots[3]==1) || (roots[2]==0 && roots[3]==0))
-                return false
-            end
+            #if roots[1]==2 && ((roots[2]==1 && roots[3]==1) || (roots[2]==0 && roots[3]==0))
+            #    return false
+            #end
             test = checkSegmentCircleIntersection(roots,p1,p2,vp,q,alpha)
             if test
                 return true
             end
         end
-        debug && println("segunda pasada")
+        debug && println("# second pass")
         for p in (p1,p2)
             r = norm(p)
             roots = segmentCircleIntersection(q1,q2,vq,r)
@@ -863,23 +872,21 @@ function case3IntersectionLong(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
     # we first check if lines already are at an intersection
     # this case should never happen but we add it for caution
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
-        #println("ya se intersectan")
+        #println("# already intersected")
         return true
     # if intersection is posible
     elseif firstFilter(p1,p2,vp,q1,q2,vq)
         # check if segments become part of the same line at one point
-        #println("No se intersectan")
+        #println("# are not already intersected")
         test,ang = checkPossibleEquality(p1,p2,vp,q1,q2,vq,alpha)
         if test
-            #println("Llegan a ser la misma linea")
+            #println("# they become the same line")
             # they become part of the same line, 
             # intersection must be checked in a different way 
             mat = zrotation(ang)
             q1prime = mat*q1
             q2prime = mat*q2
-            #println("aca")
             return  equalSegmentIntersection(p1,p2,vp,q1prime,q2prime,q2prime-q1prime)
-            #println("ya no")
         else
             # they are not part of the same line
             delta = pi/100
@@ -936,9 +943,7 @@ function case3IntersectionFast(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point
             mat = zrotation(ang)
             q1prime = mat*q1
             q2prime = mat*q2
-            #println("aca")
             return  equalSegmentIntersection(p1,p2,vp,q1prime,q2prime,q2prime-q1prime)
-            #println("ya no")
         else
             flag = true
             alphas = LinRange(0,alpha,n)
@@ -1052,18 +1057,31 @@ function surfaceSegmentIntersection(p1::Point,p2::Point,q1::Point,q2::Point,alph
     B = isapprox(vq.z,0,atol=1e-15)
     # case 1: the segments are not contained in an `xy` plane
     if !B
-        debug && println("caso 1")
+        debug && println("# case 1")
         return case1Intersection(p1,p2,vp,q1,q2,vq,alpha,debug=debug)
     # case 2: the segment
     elseif !A && B
-        debug && println("caso 2")
+        debug && println("# case 2")
         return case2Intersection(p1,p2,vp,q1,q2,vq,alpha,debug=debug)
     elseif A && B
-        debug && println("caso 3")
+        debug && println("# case 3")
         return case3Intersection(p1,p2,vp,q1,q2,vq,alpha,debug=debug)
     end
 end
 
+"""
+specialIntersection(p1::Point,p2::Point,p3::Point,alpha::Real;debug=false)
+
+Case for moving internal angles 
+"""
+function specialIntersection(p1::Point,p2::Point,p3::Point,alpha::Real;debug=false)
+    ang = xyIangle(p1-p2,p3-p2)
+    if alpha > 0
+        return ang + alpha >= 2*pi
+    else
+        return -alpha >= ang
+    end
+end
 """
 planeRotationXY(u::Point)::Matrix
 
@@ -1071,8 +1089,9 @@ returns the matrix representing a rotation of the system so that vector `u` beco
 """
 function planeRotationXY(u::Point)::Matrix
     if isapprox(distance(ez,u),0,atol=1e-15)
-        #println("cache lo raros")
         return Matrix(1,0,0,0,1,0,0,0,1)
+    elseif isapprox(distance(-1*ez,u),0,atol=1e-15)
+        return Matrix(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0)
     else
         ang = iangle(u,ez)
         u = unitVector(cross(u,ez))
@@ -1082,8 +1101,9 @@ end
 
 function planeRotationYZ(u::Point)::Matrix
     if isapprox(distance(ex,u),0,atol=1e-15)
-        #println("cache lo raros")
         return Matrix(1,0,0,0,1,0,0,0,1)
+    elseif isapprox(distance(-1*ex,u),0,atol=1e-15)
+        return Matrix(-1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0)
     else
         theta = iangle(u,ex)
         u = unitVector(cross(u,ex))
@@ -1134,27 +1154,45 @@ end
 function checkRotationIntersection(P::AbstractChain,k::Integer,alpha::Real,internal::Bool;debug::Bool=false)::Bool
     n = length(P)
     flag = false
+    # testing first the intersection between the adjacent edges
+    # for internal angle modifications only
+    if internal
+        flag = specialIntersection(P[k],P[k+1],P[k+2],alpha,debug=debug)
+        if debug && flag
+            println("==========================")
+            println("# INTERSECTION (internal special case): ")
+            println("k = $k")
+            println("theta = $(alpha)")
+            println()
+            println("=========================")
+        end
+    end
+    debug && println("k = $k")
     # index of segments that will rotate
     i = internal ? k+1 : k+2
+    debug && println("i = $i")
     while i <= n && !flag
         # indexes of static semgments
-        suplim = internal ? k : (i==k+2 ? k : k+1)
+        if internal
+            suplim = i==k+1 ? k-1 : k
+        else
+            suplim = i==k+2 ? k : k+1
+        end
         j = 1
         while j <= suplim && !flag
-            debug && println("$i,$j")
-            ep = 0.0
+            debug && println("i=$i, j=$j")
             vpj = P[j+1]-P[j]
             vpi = P[i+1]-P[i]
-            inter = surfaceSegmentIntersection(P[j]-ep*vpj,P[j+1]+ep*vpj,P[i]-ep*vpi,P[i+1]+ep*vpi,alpha,debug=debug)[1]
+            inter = surfaceSegmentIntersection(P[j],P[j+1],P[i],P[i+1],alpha,debug=debug)[1]
             if debug && inter
-                println("==========================")
-                println("INTERSECTION: ")
-                println(k)
-                println(i)
-                println(j)
-                println(alpha)
+                println("===================================")
+                println(" #### INTERSECTION #### ")
+                println("k = $(k)")
+                println("i = $(i)")
+                println("j = $(j)")
+                println("alpha = $(alpha)")
                 println()
-                println("=========================")
+                println("===================================")
             end
             flag = flag || inter
             j += 1
