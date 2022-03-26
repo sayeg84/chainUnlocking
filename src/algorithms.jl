@@ -119,10 +119,13 @@ function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer,
                             alpha::Real,beta::Real)::T
     sum = 0.0
     tang = unitVector(Q[i+1] - Q[i])
-    sum += tangentPointKernel(Q[i],Q[j],tang,alpha,beta)
-    sum += tangentPointKernel(Q[i],Q[j+1],tang,alpha,beta)
-    sum += tangentPointKernel(Q[i+1],Q[j],tang,alpha,beta)
-    sum += tangentPointKernel(Q[i+1],Q[j+1],tang,alpha,beta)
+    # sum += tangentPointKernel(Q[i],Q[j],tang,alpha,beta)
+    # sum += tangentPointKernel(Q[i],Q[j+1],tang,alpha,beta)
+    # sum += tangentPointKernel(Q[i+1],Q[j],tang,alpha,beta)
+    # sum += tangentPointKernel(Q[i+1],Q[j+1],tang,alpha,beta)
+    for a in 0:1, b in 0:1
+        sum += tangentPointKernel(Q[i+a],Q[j+b],tang,alpha,beta)
+    end
     return sum/4
 end
 
@@ -130,9 +133,11 @@ function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)::T
     n = length(Q)
     sum = 0
     for i in 1:n
+        #=
         for j in 1:(i-2)
             sum += tangentPointDiscrete(Q,i,j,alpha,beta)
         end
+        =# 
         for j in (i+2):n
             sum += tangentPointDiscrete(Q,i,j,alpha,beta)
         end
@@ -298,8 +303,8 @@ function simulatedAnnealing(Q::PolygonalChain,
     fun_vals = zeros(T,max_iter)
     nq = length(Q)
     d = minFunc(Q)
-    temp = temp_init*d
-    temp_f = temp_f*d 
+    temp = temp_init*abs(d)
+    temp_f = temp_f*abs(d) 
     c = 1
     c2 = 1
     while d > tolerance && c <= max_iter && temp > temp_f
@@ -534,6 +539,182 @@ function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance:
     return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals
 end
 =#
+
+function weight(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=2.0)::T
+    li = distance(P[i+1],P[i])
+    lj = distance(P[j+1],P[j])
+    weight = 0
+    for a in 0:1, b in 0:1
+        weight += 1/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
+    end
+    weight  = weight*li*lj/4
+    return weight
+end
+
+function weight(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,sigma::Real=2.0)::T
+    weight = 0
+    for a in 0:1, b in 0:1
+        weight += 1/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
+    end
+    weight  = weight*li*lj/4
+    return weight
+end
+
+function Bmatrix(P::PolygonalChain,sigma::Real=2.0)
+    n = length(P)
+    B = zeros(n+1,n+1)
+    for i in 1:n
+        for j in i+1:n
+            li = distance(P[i+1],P[i])
+            lj = distance(P[j+1],P[j])
+            Ti = (P[i+1]-P[i])/li
+            Tj = (P[j+1]-P[j])/lj
+            tij = dot(Ti,Tj)
+            wij = weight(P,i,j,li,lj,sigma)
+            denom = li*lj
+            for a in 0:1, b in 0:1
+                sign = (-1)^(a+b)
+                B[i+a,i+b] += sign*wij/li^2
+                B[j+a,j+b] += sign*wij/lj^2
+                B[i+a,j+b] -= sign*wij*tij/denom
+                B[j+a,i+b] -= sign*wij*tij/denom
+            end
+        end
+    end
+    return B
+end
+
+function weight0(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=2.0)::T
+    li = distance(P[i+1],P[i])
+    lj = distance(P[j+1],P[j])
+    Ti = (P[i+1]-P[i])/li
+    weight = 0
+    for a in 0:1, b in 0:1
+        weight += tangentPointKernel(P[i+a],P[j+a],Ti,2,4)/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
+    end
+    weight  = weight*li*lj/4
+    return weight
+end
+
+function weight0(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,Ti::Point,sigma::Real=2.0)::T
+    weight = 0
+    for a in 0:1, b in 0:1
+        weight += tangentPointKernel(P[i+a],P[j+a],Ti,2,4)/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
+    end
+    weight  = weight*li*lj/4
+    return weight
+end
+
+function B0matrix(P::PolygonalChain,sigma::Real=2.0)
+    n = length(P)
+    B0 = zeros(n+1,n+1)
+    for i in 1:n
+        for j in i+1:n
+            w0ij = weight0(P,i,j,sigma)/4
+            for a in 0:1, b in 0:1
+                B0[i+a,i+b] += w0ij
+                B0[j+a,j+b] += w0ij
+                B0[i+a,j+b] -= w0ij
+                B0[j+a,i+b] -= w0ij
+            end
+        end
+    end
+    return B0
+end
+
+function Amatrix(P::PolygonalChain,sigma::Real=2.0)
+    n = length(P)
+    B = zeros(n+1,n+1)
+    B0 = zeros(n+1,n+1)
+    for i in 1:n
+        for j in i+1:n
+            li = distance(P[i+1],P[i])
+            lj = distance(P[j+1],P[j])
+            Ti = (P[i+1]-P[i])/li
+            Tj = (P[j+1]-P[j])/lj
+            tij = dot(Ti,Tj)
+            wij = weight(P,i,j,li,lj,sigma)
+            denom = li*lj
+            w0ij = weight0(P,i,j,li,lj,Ti,sigma)/4
+            for a in 0:1, b in 0:1
+                sign = (-1)^(a+b)
+                B[i+a,i+b] += sign*wij/li^2
+                B[j+a,j+b] += sign*wij/lj^2
+                B[i+a,j+b] -= sign*wij*tij/denom
+                B[j+a,i+b] -= sign*wij*tij/denom
+                B0[i+a,i+b] += w0ij
+                B0[j+a,j+b] += w0ij
+                B0[i+a,j+b] -= w0ij
+                B0[j+a,i+b] -= w0ij
+            end
+        end
+    end
+    return B + B0
+end
+
+function Aline(P::PolygonalChain,sigma::Real=2.0)
+    n = length(P)
+    A = Amatrix(P,sigma)
+    zer = zeros(n+1,n+1)
+    fin = vcat(
+        hcat(A,zer,zer),
+        hcat(zer,A,zer),
+        hcat(zer,zer,A)
+    )
+    return fin
+end
+
+function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
+    n = length(P)
+    if internal
+        res = zeros(n)
+        for i in 1:n
+            res[i] = (distance(P[i+1],P[i])-ls[i])^2
+        end
+        return res
+    else
+        res = zeros(2*n-1)
+        for i in 1:n
+            res[i] = distance(P[i+1],P[i])-ls[i]
+        end
+        for i in 1:n-1
+            res[n+i] = bangle(P[i],P[i+1],P[i+2])-bas[i]
+        end
+        return res
+    end
+end
+
+function constraintsJacobian(P::PolygonalChain,internal::Bool)
+    n = length(P)
+    if internal
+        C = zeros(n,3*n+3)
+        # length restrictions
+        for i in 1:n
+            l = distance(P[i+1],P[i])
+            C[i,3*i-2] = -P[i].x/l
+            C[i,3*i-1] = -P[i].y/l
+            C[i,3*i]   = -P[i].z/l
+            C[i,3*i+1] = P[i+1].x/l
+            C[i,3*i+2] = P[i+1].y/l
+            C[i,3*i+3] = P[i+1].z/l
+        end
+    else
+        C = zeros(2*n-1,3*n+3)
+        # length restrictions
+        for i in 1:n
+            l = distance(P[i+1],P[i])
+            C[i,3*i-2] = -P[i].x/l
+            C[i,3*i-1] = -P[i].y/l
+            C[i,3*i]   = -P[i].z/l
+            C[i,3*i+1] = P[i+1].x/l
+            C[i,3*i+2] = P[i+1].y/l
+            C[i,3*i+3] = P[i+1].z/l
+        end
+        # internal angle restrictions
+    end
+    return C
+end
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
 end
