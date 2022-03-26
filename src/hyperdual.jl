@@ -1,14 +1,20 @@
 
-struct Hyperdual{T<:Real}
+struct Hyperdual{T<:AbstractFloat}
     a0::T
     a1::T
     a2::T
     a3::T
-    Hyperdual{T}() where {T<:Real} = new()
-    Hyperdual{T}(a0,a1,a2,a3) where {T<:Real} = new(a0,a1,a2,a3)
+    Hyperdual{T}() where {T<:AbstractFloat} = new()
+    Hyperdual{T}(a0,a1,a2,a3) where {T<:AbstractFloat} = new(a0,a1,a2,a3)
     Hyperdual(a0::AbstractIrrational,a1,a2,a3) = Hyperdual{Float64}(a0,a1,a2,a3)
-    Hyperdual(a0,a1,a2,a3) = Hyperdual{typeof(a0)}(a0,a1,a2,a3)
+    Hyperdual(a0::AbstractFloat,a1,a2,a3) = Hyperdual{typeof(a0)}(a0,a1,a2,a3)
+    Hyperdual(a0::AbstractFloat,h) = Hyperdual{typeof(a0)}(a0,h,h,0)
+    Hyperdual(a0,a1,a2,a3) = Hyperdual{Float64}(a0,a1,a2,a3)
+    Hyperdual(a0) = Hyperdual{Float64}(a0,0.0,0.0,0.0)
 end
+
+const FloatOrDual = Union{AbstractFloat,Hyperdual}
+const RealOrDual  = Union{Real,Hyperdual}
 
 function Base.abs(x::Hyperdual)
     return abs(x.a0)

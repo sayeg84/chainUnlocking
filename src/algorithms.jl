@@ -67,7 +67,7 @@ function flatten(P::AbstractChain)::PolygonalChain
     return PolygonalChain(lengths,ang_vals,newDiheds)
 end
 
-function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
+function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))
     if length(P) == length(Q)
         return overlapedRmsd(Q,P)
     else
@@ -75,17 +75,17 @@ function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))::T
     end
 end
 
-function squaredMaxSpan(Q::AbstractChain)::T
+function squaredMaxSpan(Q::AbstractChain)
     v = Q[1] - Q[end]
     return -dot(v,v)
 end
 
-function fourKnotSpan(Q::AbstractChain)::T
+function fourKnotSpan(Q::AbstractChain)
     v = Q[2] - Q[end-1]
     return -dot(v,v)
 end
 
-function demaineEnergy1(Q::AbstractChain)::T
+function demaineEnergy1(Q::AbstractChain)
     n = length(Q)
     sum = 0
     for i in 1:n
@@ -96,7 +96,7 @@ function demaineEnergy1(Q::AbstractChain)::T
     return sum
 end
 
-function demaineEnergy2(Q::AbstractChain)::T
+function demaineEnergy2(Q::AbstractChain)
     n = length(Q)
     sum = 0
     for i in 1:n
@@ -110,34 +110,30 @@ function demaineEnergy2(Q::AbstractChain)::T
     return sum
 end
 
-function tangentPointKernel(p::Point,q::Point,tang::Point,alpha::Real,beta::Real)::T
+function tangentPointKernel(p::Point,q::Point,tang::Point,alpha::Real,beta::Real)
     dir = p-q
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
 
 function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer,
-                            alpha::Real,beta::Real)::T
+                            alpha::Real,beta::Real)
     sum = 0.0
     tang = unitVector(Q[i+1] - Q[i])
-    # sum += tangentPointKernel(Q[i],Q[j],tang,alpha,beta)
-    # sum += tangentPointKernel(Q[i],Q[j+1],tang,alpha,beta)
-    # sum += tangentPointKernel(Q[i+1],Q[j],tang,alpha,beta)
-    # sum += tangentPointKernel(Q[i+1],Q[j+1],tang,alpha,beta)
     for a in 0:1, b in 0:1
         sum += tangentPointKernel(Q[i+a],Q[j+b],tang,alpha,beta)
     end
     return sum/4
 end
 
-function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)::T
+function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)
     n = length(Q)
     sum = 0
     for i in 1:n
-        #=
+        
         for j in 1:(i-2)
             sum += tangentPointDiscrete(Q,i,j,alpha,beta)
         end
-        =# 
+         
         for j in (i+2):n
             sum += tangentPointDiscrete(Q,i,j,alpha,beta)
         end
@@ -199,8 +195,8 @@ function basicSMetaheuristic(Q::PolygonalChain,minFunc::Function,
     end
 
     ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(T,max_iter)
-    fun_vals = zeros(T,max_iter)
+    ang_vals = zeros(typeof(Q[1].x),max_iter)
+    fun_vals = zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
     minf_val = minFunc(Q)
     c = 1
@@ -245,8 +241,8 @@ function localRandomSearch(Q::PolygonalChain,
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     ang_idxs  = zeros(Int16,max_iter)
-    ang_vals  = zeros(T,max_iter)
-    fun_vals = zeros(T,max_iter)
+    ang_vals  = zeros(typeof(Q[1].x),max_iter)
+    fun_vals =  zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
     d = minFunc(Q)
     c = 1
@@ -299,8 +295,8 @@ function simulatedAnnealing(Q::PolygonalChain,
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(T,max_iter)
-    fun_vals = zeros(T,max_iter)
+    ang_vals = zeros(typeof(Q[1].x),max_iter)
+    fun_vals = zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
     d = minFunc(Q)
     temp = temp_init*abs(d)
@@ -367,8 +363,8 @@ function simulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(T,max_iter)
-    fun_vals = zeros(T,max_iter)
+    ang_vals = zeros(typeof(Q[1].x),max_iter)
+    fun_vals = zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
     debug && println("bien aca")
     temp = temp_init*minFunc(Q)
@@ -427,8 +423,8 @@ function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(T,max_iter)
-    fun_vals = zeros(T,max_iter)
+    ang_vals = zeros(typeof(Q[1].x),max_iter)
+    fun_vals = zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
     debug && println("bien aca")
     temp = temp_init*minFunc(Q)
@@ -488,8 +484,8 @@ function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance:
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(T,max_iter)
-    fun_vals = zeros(T,max_iter)
+    ang_vals = zeros(typeof(Q[1].x),max_iter)
+    fun_vals = zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
     debug && println("bien aca")
     temp_range = range(temp_init*minFunc(Q),stop=1e-6,length=max_iter)
@@ -540,7 +536,7 @@ function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance:
 end
 =#
 
-function weight(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=2.0)::T
+function weight(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=0.75)
     li = distance(P[i+1],P[i])
     lj = distance(P[j+1],P[j])
     weight = 0
@@ -551,7 +547,7 @@ function weight(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=2.0)::T
     return weight
 end
 
-function weight(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,sigma::Real=2.0)::T
+function weight(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,sigma::Real=0.75)
     weight = 0
     for a in 0:1, b in 0:1
         weight += 1/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
@@ -560,17 +556,28 @@ function weight(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,sigma:
     return weight
 end
 
-function Bmatrix(P::PolygonalChain,sigma::Real=2.0)
+function Bmatrix(P::PolygonalChain,sigma::Real=0.75;debug::Bool=false)
     n = length(P)
-    B = zeros(n+1,n+1)
+    T = typeof(P[1].x)
+    B = zeros(T,n+1,n+1)
     for i in 1:n
-        for j in i+1:n
+        for j in i+2:n
             li = distance(P[i+1],P[i])
             lj = distance(P[j+1],P[j])
             Ti = (P[i+1]-P[i])/li
             Tj = (P[j+1]-P[j])/lj
             tij = dot(Ti,Tj)
             wij = weight(P,i,j,li,lj,sigma)
+            if debug
+                println("i=$i")
+                println("j=$j")
+                println("li = $li")
+                println("lj = $lj")
+                println("Ti = $Ti")
+                println("Tj = $Tj")
+                println("tij = $tij")
+                println("wij = $wij")
+            end
             denom = li*lj
             for a in 0:1, b in 0:1
                 sign = (-1)^(a+b)
@@ -584,7 +591,7 @@ function Bmatrix(P::PolygonalChain,sigma::Real=2.0)
     return B
 end
 
-function weight0(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=2.0)::T
+function weight0(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=0.75)
     li = distance(P[i+1],P[i])
     lj = distance(P[j+1],P[j])
     Ti = (P[i+1]-P[i])/li
@@ -596,7 +603,7 @@ function weight0(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=2.0)::T
     return weight
 end
 
-function weight0(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,Ti::Point,sigma::Real=2.0)::T
+function weight0(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,Ti::Point,sigma::Real=0.75)
     weight = 0
     for a in 0:1, b in 0:1
         weight += tangentPointKernel(P[i+a],P[j+a],Ti,2,4)/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
@@ -605,11 +612,12 @@ function weight0(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,Ti::P
     return weight
 end
 
-function B0matrix(P::PolygonalChain,sigma::Real=2.0)
+function B0matrix(P::PolygonalChain,sigma::Real=0.75)
     n = length(P)
-    B0 = zeros(n+1,n+1)
+    T = typeof(P[1].x)
+    B0 = zeros(T,n+1,n+1)
     for i in 1:n
-        for j in i+1:n
+        for j in i+2:n
             w0ij = weight0(P,i,j,sigma)/4
             for a in 0:1, b in 0:1
                 B0[i+a,i+b] += w0ij
@@ -622,12 +630,13 @@ function B0matrix(P::PolygonalChain,sigma::Real=2.0)
     return B0
 end
 
-function Amatrix(P::PolygonalChain,sigma::Real=2.0)
+function Amatrix(P::PolygonalChain,sigma::Real=0.75)
     n = length(P)
-    B = zeros(n+1,n+1)
-    B0 = zeros(n+1,n+1)
+    T = typeof(P[1].x)
+    B  = zeros(T,n+1,n+1)
+    B0 = zeros(T,n+1,n+1)
     for i in 1:n
-        for j in i+1:n
+        for j in i+2:n
             li = distance(P[i+1],P[i])
             lj = distance(P[j+1],P[j])
             Ti = (P[i+1]-P[i])/li
@@ -652,24 +661,160 @@ function Amatrix(P::PolygonalChain,sigma::Real=2.0)
     return B + B0
 end
 
-function Aline(P::PolygonalChain,sigma::Real=2.0)
+function Aline(P::PolygonalChain,sigma::Real=0.75)
     n = length(P)
     A = Amatrix(P,sigma)
-    zer = zeros(n+1,n+1)
+    T = typeof(P[1].x)
+    
+    #=
+    zer = zeros(T,n+1,n+1)
     fin = vcat(
         hcat(A,zer,zer),
         hcat(zer,A,zer),
         hcat(zer,zer,A)
     )
+    =#
+    id = [1 0 0 ; 0 1 0 ; 0 0 1]
+    fin = zeros(T,3*n+3,3*n+3)
+    for i in 1:n+1
+        for j in 1:n+1
+            fin[3*i-2:3*i,3*j-2:3*j] = A[i,j]*id
+        end
+    end
     return fin
 end
+
+function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
+    n = length(P)
+    T = typeof(P[1].x)
+    if internal
+        res = zeros(T,n)
+        for i in 1:n
+            res[i] = (distance(P[i+1],P[i])-ls[i])^2
+        end
+        return res
+    else
+        res = zeros(T,2*n-1)
+        for i in 1:n
+            res[i] = distance(P[i+1],P[i])-ls[i]
+        end
+        for i in 1:n-1
+            res[n+i] = bangle(P[i],P[i+1],P[i+2])-bas[i]
+        end
+        return res
+    end
+end
+
+function distance(x)
+    ax = x[1]
+    ay = x[2]
+    az = x[3]
+    bx = x[4]
+    by = x[5]
+    bz = x[6]
+    return sqrt((ax-bx)*(ax-bx) + (ay-by)*(ay-by) + (az-bz)*(az-bz))
+end
+
+function bangle(x)
+    ax = x[1]
+    ay = x[2]
+    az = x[3]
+    bx = x[4]
+    by = x[5]
+    bz = x[6]
+    cx = x[7]
+    cy = x[8]
+    cz = x[9]
+    u1x = bx-ax
+    u1y = by-ay
+    u1z = bz-az
+    u2x = cx-bx
+    u2y = cy-by
+    u2z = cz-bz
+    d = u1x*u2x +  u1y*u2y + u1z*u2z
+    n1 = distance([u1x,u1y,u1z,0,0,0]) 
+    n2 = distance([u2x,u2y,u2z,0,0,0]) 
+    return pi-acos(d/(n1*n2))
+end
+
+function bangleDev(a,b,c)
+    h = 1e-3
+    ah = Point(Hyperdual(a.x,h),Hyperdual(a.y,0),Hyperdual(a.z,0))
+    bh = Point(Hyperdual(b.x,0),Hyperdual(b.y,0),Hyperdual(b.z,0))
+    ch = Point(Hyperdual(c.x,0),Hyperdual(c.y,0),Hyperdual(c.z,0))
+    return bangle(ah,b,c).a1/h
+end
+
+
+function diff(f,p::Point,h::Real=1e-3)
+    res = zeros(typeof(p.x),3)
+    xp = Point(Hyperdual(p.x,h),Hyperdual(p.y,0),Hyperdual(p.z,0))
+    yp = Point(Hyperdual(p.x,0),Hyperdual(p.y,h),Hyperdual(p.z,0))
+    zp = Point(Hyperdual(p.x,0),Hyperdual(p.y,0),Hyperdual(p.z,h))
+    return [f(xp).a1/h,f(yp).a1/h,f(zp).a1/h]
+end
+
+
+function hej(j::Integer,h::Real)
+    T = typeof(h)
+    if     j==1
+        return Point(Hyperdual{T}(0.0,h,h,0.0),Hyperdual{T}(0.0,0.0,0.0,0.0),Hyperdual{T}(0.0,0.0,0.0,0.0))
+    elseif j==2
+        return Point(Hyperdual{T}(0.0,0.0,0.0,0.0),Hyperdual{T}(0.0,h,h,0.0),Hyperdual{T}(0.0,0.0,0.0,0.0))
+    elseif j==3
+        return Point(Hyperdual{T}(0.0,0.0,0.0,0.0),Hyperdual{T}(0.0,0.0,0.0,0.0),Hyperdual{T}(0.0,h,h,0.0))
+    else
+        error("index $j out of range")
+    end
+end
+
+function diff(f,P::PolygonalChain,h::Real=1e-3)
+    n = length(P)
+    T = typeof(P[1].x)
+    res = zeros(T,3*n+3)
+    hyperP = PolygonalChain([Point{Hyperdual}(p) for p in P.vertices])
+    for i in 1:n+1
+        #println("i = $i")
+        for j in 1:3
+            newP = copy(hyperP)
+            #println("j = $j")
+            newP[i] += hej(j,h)
+            #println(newP)
+            fval = f(newP)
+            #println("f = $fval")
+            res[3*(i-1)+j] = fval.a1/h
+        end
+    end
+    return res
+end
+
+function diffLocalChange(f,P::PolygonalChain,h::Real=1e-3)
+    n = length(P)
+    T = typeof(P[1].x)
+    res = zeros(T,3*n+3)
+    for i in 1:n+1
+        #println("i = $i")
+        for j in 1:3
+            #println("j = $j")
+            newP = copy(P)
+            newP[i] += hej(j,h)
+            #println(newP)
+            fval = f(newP)
+            #println("f = $fval")
+            res[3*(i-1)+j] = fval.a1/h
+        end
+    end
+    return res
+end
+
+using DelimitedFiles
 
 function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     n = length(P)
     if internal
         res = zeros(n)
         for i in 1:n
-            res[i] = (distance(P[i+1],P[i])-ls[i])^2
+            res[i] = distance(P[i+1],P[i])-ls[i]
         end
         return res
     else
@@ -684,37 +829,314 @@ function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     end
 end
 
+
+function constraints(arr::Array{<:Real,1},ls,bas,das,internal::Bool)
+    n = length(ls)
+    if internal
+        res = zeros(n)
+        for i in 1:n
+            res[i] = distance(arr[3*i-2:3*i+3])-ls[i]
+        end
+        return res
+    else
+        res = zeros(2*n-1)
+        for i in 1:n
+            res[i] = distance(arr[3*i-2:3*i+3])-ls[i]
+        end
+        for i in 1:n-1
+            res[n+i] = bangle(arr[3*i-2:3*i+6])-bas[i]
+        end
+        return res
+    end
+end
+
+
 function constraintsJacobian(P::PolygonalChain,internal::Bool)
     n = length(P)
+    T = typeof(P[1].x)
     if internal
-        C = zeros(n,3*n+3)
+        C = zeros(T,n,3*n+3)
         # length restrictions
         for i in 1:n
             l = distance(P[i+1],P[i])
-            C[i,3*i-2] = -P[i].x/l
-            C[i,3*i-1] = -P[i].y/l
-            C[i,3*i]   = -P[i].z/l
-            C[i,3*i+1] = P[i+1].x/l
-            C[i,3*i+2] = P[i+1].y/l
-            C[i,3*i+3] = P[i+1].z/l
+            C[i,3*i-2] = (P[i]-P[i+1]).x/l
+            C[i,3*i-1] = (P[i]-P[i+1]).y/l
+            C[i,3*i]   = (P[i]-P[i+1]).z/l
+            C[i,3*i+1] = (P[i+1]-P[i]).x/l
+            C[i,3*i+2] = (P[i+1]-P[i]).y/l
+            C[i,3*i+3] = (P[i+1]-P[i]).z/l
         end
     else
-        C = zeros(2*n-1,3*n+3)
+        C = zeros(T,2*n-1,3*n+3)
         # length restrictions
         for i in 1:n
             l = distance(P[i+1],P[i])
-            C[i,3*i-2] = -P[i].x/l
-            C[i,3*i-1] = -P[i].y/l
-            C[i,3*i]   = -P[i].z/l
-            C[i,3*i+1] = P[i+1].x/l
-            C[i,3*i+2] = P[i+1].y/l
-            C[i,3*i+3] = P[i+1].z/l
+            C[i,3*i-2] = (P[i]-P[i+1]).x/l
+            C[i,3*i-1] = (P[i]-P[i+1]).y/l
+            C[i,3*i]   = (P[i]-P[i+1]).z/l
+            C[i,3*i+1] = (P[i+1]-P[i]).x/l
+            C[i,3*i+2] = (P[i+1]-P[i]).y/l
+            C[i,3*i+3] = (P[i+1]-P[i]).z/l
         end
         # internal angle restrictions
+        arr = toArray(P)
+        for i in 1:n-1
+            lim1 = 3*i-2
+            lim2 = 3*i+6
+            x = transpose(arr)[lim1:lim2]
+            dev = jacobian(bangle,x,1e-3;df=hyperdualPartialDerivative)
+            C[n+i,lim1:lim2] = dev
+        end
+    end
+    return C
+end
+
+function constraintsJacobian3(P::PolygonalChain,internal::Bool)
+    n = length(P)
+    T = typeof(P[1].x)
+    if internal
+        C = zeros(T,n,3*n+3)
+        # length restrictions
+        for i in 1:n
+            grad1 = diff(p->distance(P[i+1],p),P[i])
+            grad2 = diff(p->distance(p,P[i]),P[i+1])
+            C[i,3*i-2:3*i]   = grad1
+            C[i,3*i+1:3*i+3] = grad2
+        end
+    else
+        C = zeros(T,2*n-1,3*n+3)
+        # length restrictions
+        for i in 1:n
+            grad1 = diff(p->distance(P[i+1],p),P[i])
+            grad2 = diff(p->distance(p,P[i]),P[i+1])
+            C[i,3*i-2:3*i]   = grad1
+            C[i,3*i+1:3*i+3] = grad2
+        end
+        # internal angle restrictions
+        arr = toArray(P)
+        for i in 1:n-1
+            grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
+            grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
+            grad3 = diff(p->bangle(P[i],P[i+1],p),P[i+2])
+            C[n+i,3*i-2:3*i]   = grad1
+            C[n+i,3*i+1:3*i+3] = grad2
+            C[n+i,3*i+4:3*i+6] = grad3
+        end
+    end
+    return C
+end
+
+function constraintsJacobian4(P::PolygonalChain,internal::Bool)
+    n = length(P)
+    T = typeof(P[1].x)
+    if internal
+        C = zeros(T,n,3*n+3)
+        # length restrictions
+        for i in 1:n
+            l = distance(P[i+1],P[i])
+            C[i,3*i-2] = (P[i]-P[i+1]).x/l
+            C[i,3*i-1] = (P[i]-P[i+1]).y/l
+            C[i,3*i]   = (P[i]-P[i+1]).z/l
+            C[i,3*i+1] = (P[i+1]-P[i]).x/l
+            C[i,3*i+2] = (P[i+1]-P[i]).y/l
+            C[i,3*i+3] = (P[i+1]-P[i]).z/l
+        end
+    else
+        C = zeros(T,2*n-1,3*n+3)
+        # length restrictions
+        for i in 1:n
+            l = distance(P[i+1],P[i])
+            C[i,3*i-2] = (P[i]-P[i+1]).x/l
+            C[i,3*i-1] = (P[i]-P[i+1]).y/l
+            C[i,3*i]   = (P[i]-P[i+1]).z/l
+            C[i,3*i+1] = (P[i+1]-P[i]).x/l
+            C[i,3*i+2] = (P[i+1]-P[i]).y/l
+            C[i,3*i+3] = (P[i+1]-P[i]).z/l
+        end
+        # internal angle restrictions
+        arr = toArray(P)
+        for i in 1:n-1
+            grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
+            grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
+            grad3 = diff(p->bangle(P[i],P[i+1],p),P[i+2])
+            C[n+i,3*i-2:3*i]   = grad1
+            C[n+i,3*i+1:3*i+3] = grad2
+            C[n+i,3*i+4:3*i+6] = grad3
+        end
     end
     return C
 end
 
 
+function constraintsJacobian2(P::PolygonalChain,internal::Bool)
+    n = length(P)
+    T = typeof(P[1].x)
+    if internal
+        C = zeros(T,n,3*n+3)
+        # length restrictions
+        for i in 1:n
+            #println(i)
+            grad = diff(Q->distance(Q[i+1],Q[i]),P)
+            #println(grad)
+            C[i,:] = grad
+        end
+    else
+        C = zeros(T,2*n-1,3*n+3)
+        # length restrictions
+        for i in 1:n
+            grad = diff(Q->distance(Q[i+1],Q[i]),P)
+            #println(grad)
+            C[i,:] = grad
+        end
+        # internal angle restrictions
+        arr = toArray(P)
+        for i in 1:n-1
+            grad = diff(Q->bangle(Q[i],Q[i+1],Q[i+2]),P)
+            C[n+i,:] = grad
+        end
+    end
+    return C
+end
+
+
+
+function assertEqualJac(n)
+    eq_flag = false
+    for i in 1:n
+        C1 = constraintsJacobian(P,false)
+        C2 = constraintsJacobian2(P,false)
+        eq_flag = eq_flag || isapprox(C1-C2,1e-15)
+        if eq_flag
+            println()
+            display(C1)
+            println()
+            display(C2)
+            println()
+            display(C1-C2)
+            println()
+        end
+    end
+end
+
+function benchConsJac1()
+    P = PolygonalChain(20)
+    constraintsJacobian(P,false)
+end
+
+function benchConsJac2()
+    P = PolygonalChain(20)
+    constraintsJacobian2(P,false)
+end
+
+function benchConsJac3()
+    P = PolygonalChain(20)
+    constraintsJacobian3(P,false)
+end
+
+function benchConsJac4()
+    P = PolygonalChain(20)
+    constraintsJacobian4(P,false)
+end
+
+function movement(P::PolygonalChain,internal::Bool)
+    alpha=2
+    beta=4.5
+    sigma = (beta-1)/alpha-1
+    println(sigma)
+    aux = Amatrix(P,sigma)
+    Al = Aline(P,sigma)
+    n = length(P)
+    T = typeof(P[1].x)
+    k = internal ? n : 2*n-1
+    C = constraintsJacobian4(P,internal)
+    println("in movement")
+    println(P)
+    enerGrad = diff(tangentEnergyFrac,P)
+    #println(enerGrad)
+    #enerGrad = reshape(enerGrad,(3,n+1))
+    #enerGrad = transpose(enerGrad)
+    #enerGrad = reshape(enerGrad,length(enerGrad))
+    #println(enerGrad)
+    mat = vcat(
+        hcat(Al,transpose(C)),
+        hcat(C,zeros(T,k,k))
+    )
+    b = vcat(enerGrad,zeros(T,k))
+    naiveDir = mat \ b
+    aux = reshape(toArray(P),3*n+3) -  1e-4*b[1:(3*n+3)]
+    ls,bas,das = lengthsAndAngles(P)
+    cons = constraints(aux,ls,bas,das,internal)
+    newSol = vcat(zeros(T,3*n+3),-1*cons)
+    naiveDir2 = mat \ newSol
+    println()
+    display(Al)
+    println()
+    println()
+    display(mat)
+    println()
+    println()
+    display(enerGrad)
+    println()
+    println()
+    display(naiveDir)
+    println()
+    println()
+    sol = Al \ enerGrad
+    display(sol)
+    println()
+    display(Al*sol)
+    println()
+    println()
+    display(cons)
+    println()
+    println()
+    display(naiveDir2)
+    println()
+end
+
+function sobolevGradientDescent()
+    for i in 1:n
+
+    end
+end
+
+function halfCircle(n)
+    angs = LinRange(0,2*pi,n)
+    points = [Point{Float64}(cos(x),sin(x),0) for x in angs]
+    return PolygonalChain(points)
+end
+
 if abspath(PROGRAM_FILE) == @__FILE__
+    a = Point()
+    b = Point()
+    c = Point()
+    println(jacobian(bangle,hcat(toArray(a),toArray(b),toArray(c)),1e-3;df=hyperdualPartialDerivative))
+    println(bangleDev(a,b,c))
+    aux(p::Point) = bangle(p,b,c)
+    println(diff(aux,a))
+    aux2(P::PolygonalChain) = bangle(P[1],P[2],P[3])
+    println(diff(aux2,PolygonalChain([a,b,c])))
+    P = PolygonalChain(6)
+    println(P)
+    P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])
+    bench = false
+    if bench
+        using BenchmarkTools
+        println()
+        println()
+        display(@benchmark benchConsJac1())
+        println()
+        println()
+        display(@benchmark benchConsJac2())
+        println()
+        println()
+        display(@benchmark benchConsJac3())
+        println()
+        println()
+        display(@benchmark benchConsJac4())
+        println()
+        println()
+    end
+    #P = halfCircle(20)
+    movement(P,true)
 end

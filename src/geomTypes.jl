@@ -1,30 +1,41 @@
 using LinearAlgebra, BenchmarkTools, StaticArrays
 
-const T = BigFloat
+include("derivatives.jl")
 
 abstract type AbstractPoint end
 
-struct Point <: AbstractPoint
+struct Point{T<:FloatOrDual} <: AbstractPoint
     x::T
     y::T
     z::T
 end
 
-const ex = Point(1.0,0.0,0.0)
-const ey = Point(0.0,1.0,0.0)
-const ez = Point(0.0,0.0,1.0)
-const e0 = Point(0.0,0.0,0.0)
+Point(a,b,c)                = Point{typeof(a)}(a,b,c)
+Point(U::DataType,p::Point) = Point{U}(p.x,p.y,p.z)
+Point()                     = Point{Float64}(rand(),rand(),rand())
+Point(arr)                  = Point{typeof(arr[1])}(arr[1],arr[2],arr[3])
+Point{Hyperdual}(p::Point{<:AbstractFloat}) = Point{Hyperdual}(Hyperdual(p.x),Hyperdual(p.y),Hyperdual(p.z))
 
-function pow2(x::Number)::Number
+const ex_l = Point{Float64}(1.0,0.0,0.0)
+const ey_l = Point{Float64}(0.0,1.0,0.0)
+const ez_l = Point{Float64}(0.0,0.0,1.0)
+const e0_l = Point{Float64}(0.0,0.0,0.0)
+
+const ex = Point{BigFloat}(1.0,0.0,0.0)
+const ey = Point{BigFloat}(0.0,1.0,0.0)
+const ez = Point{BigFloat}(0.0,0.0,1.0)
+const e0 = Point{BigFloat}(0.0,0.0,0.0)
+
+function pow2(x::Number)
     return x*x
 end
 
-function minmax(x::Real,y::Real)
-    return x < y ? (x,y) : (y,x)
+function pow2(x::Hyperdual)::Hyperdual
+    return x*x
 end
 
-function Point()
-    return Point(rand(),rand(),rand())
+function minmax(x::RealOrDual,y::RealOrDual)
+    return x < y ? (x,y) : (y,x)
 end
 
 #import Base.:+, Base.:-, Base.:*, Base.transpose,  Base.copy, Base.rand
@@ -33,15 +44,15 @@ function Base.:+(p::Point,q::Point)::Point
     return Point(p.x + q.x, p.y + q.y, p.z + q.z)
 end
 
-function Base.:*(a::Real,p::Point)::Point
+function Base.:*(a::RealOrDual,p::Point)::Point
     return Point(a*p.x, a*p.y, a*p.z)
 end
 
-function Base.:*(p::Point,a::Real)::Point
+function Base.:*(p::Point,a::RealOrDual)::Point
     return a*p
 end
 
-function Base.:/(p::Point,a::Real)::Point
+function Base.:/(p::Point,a::RealOrDual)::Point
     return Point(p.x/a, p.y/a, p.z/a)
 end
 
@@ -54,11 +65,11 @@ function Base.copy(p::Point)::Point
 end
  
 """
-dot(p::Point,q::Point)::T
+dot(p::Point,q::Point)
 
 Dot product for points
 """
-function dot(p::Point,q::Point)::T
+function dot(p::Point,q::Point)
     return p.x*q.x + p.y*q.y + p.z*q.z
 end
 
@@ -73,19 +84,19 @@ end
 
 import LinearAlgebra.norm
 
-function norm(p::Point)::T
+function norm(p::Point)
     return sqrt(pow2(p.x) + pow2(p.y) + pow2(p.z))
 end
 
-function snorm(q::Point;s::T=2.0)::T
+function snorm(q::Point;s::RealOrDual=2.0)
     return (q.x^s + q.y^s + q.z^s)^(1/s)
 end
 
-function distance(p::Point,q::Point)::T
+function distance(p::Point,q::Point)
     return norm(p-q)
 end
 
-function sdistance(p::Point,q::Point;s::T=2.0)::T
+function sdistance(p::Point,q::Point;s::RealOrDual=2.0)
     return snorm(p-q,s=s)
 end
 
@@ -94,21 +105,21 @@ function unitVector(p::Point)::Point
 end
 
 """
-iangle(u::Point,v::Point)::T 
+iangle(u::Point,v::Point) 
 
 returns the internal angle between vectors `u` and `v`.
 """
-function iangle(u::Point,v::Point)::T
+function iangle(u::Point,v::Point)
     sint = norm(cross(u,v))
     cost = dot(u,v)
     return atan(sint,cost)    
 end
 
-function toArray(p::Point)::Array{T,1}
+function toArray(p::Point)::Array{<:RealOrDual,1}
     return [p.x,p.y,p.z]
 end
 
-struct Matrix 
+struct Matrix{T<:RealOrDual}
     xx::T
     xy::T
     xz::T
@@ -120,16 +131,18 @@ struct Matrix
     zz::T
 end
 
+Matrix(xx,xy,xz,yx,yy,yz,zx,zy,zz) = Matrix{typeof(xx)}(xx,xy,xz,yx,yy,yz,zx,zy,zz)
+Matrix(U::DataType,M::Matrix)      = Matrix{U}(M.xx,M.xy,M.xz,M.yx,M.yy,M.yz,M.zx,M.zy,M.zz)
 
-function Matrix(A::Array{<:Real,2}) 
+function Matrix(A::Array{<:RealOrDual,2}) 
     return Matrix(A[1,1],A[1,2],A[1,3],A[2,1],A[2,2],A[2,3],A[3,1],A[3,2],A[3,3])
 end
 
 function Matrix()
-    return Matrix(rand(),rand(),rand(),rand(),rand(),rand(),rand(),rand(),rand())
+    return Matrix{Float64}(rand(),rand(),rand(),rand(),rand(),rand(),rand(),rand(),rand())
 end
 
-function matrixFromRows(row1::Array{<:Real,1},row2::Array{<:Real,1},row3::Array{<:Real,1})
+function matrixFromRows(row1::Array{<:RealOrDual,1},row2::Array{<:RealOrDual,1},row3::Array{<:RealOrDual,1})
     if length(row1)!=3
         error("row 1 is not of length 3")
     elseif length(row2)!=3
@@ -140,7 +153,7 @@ function matrixFromRows(row1::Array{<:Real,1},row2::Array{<:Real,1},row3::Array{
     return Matrix(row1[1],row1[2],row1[3],row2[1],row2[2],row2[3],row3[1],row3[2],row3[3])
 end
 
-function matrixFromCols(col1::Array{<:Real,1},col2::Array{<:Real,1},col3::Array{<:Real,1})
+function matrixFromCols(col1::Array{<:RealOrDual,1},col2::Array{<:RealOrDual,1},col3::Array{<:RealOrDual,1})
     if length(col1)!=3
         error("col 1 is not of length 3")
     elseif length(col2)!=3
@@ -166,7 +179,7 @@ function Base.:+(A::Matrix,B::Matrix)::Matrix
     A.zx + B.zx , A.zy + B.zy , A.zz + B.zz)
 end
 
-function Base.:*(a::Real,A::Matrix)::Matrix
+function Base.:*(a::RealOrDual,A::Matrix)::Matrix
     return Matrix(a*A.xx , a*A.xy , a*A.xz, 
     a*A.yx , a*A.yy , a*A.yz, 
     a*A.zx , a*A.zy , a*A.zz)
@@ -205,45 +218,45 @@ function Base.transpose(A::Matrix)::Matrix
 end
 
 """
-dot(A::Matrix,B::Matrix)::T
+dot(A::Matrix,B::Matrix)
 
 Dot product for matrices
 """
-function dot(A::Matrix,B::Matrix)::T
+function dot(A::Matrix,B::Matrix)
     return A.xx*B.xx + A.xy*B.xy + A.xz*B.xz + A.yx*B.yx + A.yy*B.yy + A.yz*B.yz + A.zx*B.zx + A.zy*B.zy + A.zz*B.zz
 end
 
-function xrotation(ang::Real)::Matrix
+function xrotation(ang::RealOrDual)::Matrix
     a = cos(ang)
     b = sin(ang)
-    return Matrix(1, 0, 0,
+    return Matrix{typeof(a)}(1, 0, 0,
     0, a, -b,
     0, b, a)
 end
 
-function yrotation(ang::Real)::Matrix
+function yrotation(ang::RealOrDual)::Matrix
     a = cos(ang)
     b = sin(ang)
-    return Matrix(a, 0, b,
+    return Matrix{typeof(a)}(a, 0, b,
     0, 1, 0,
     -b, 0, a)
 end
 
-function zrotation(ang::Real)::Matrix
+function zrotation(ang::RealOrDual)::Matrix
     a = cos(ang)
     b = sin(ang)
-    return Matrix(a, -b, 0,
+    return Matrix{typeof(a)}(a, -b, 0,
     b, a, 0,
     0, 0, 1)
 end
 
 
 """
-rotation(ang::T,u::Point)::Matrix
+rotation(ang::RealOrDual,u::Point)::Matrix
 
 Computes the rotation matrix around unit vector `u` for an angle `ang` using the explicit formula in https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
 """
-function rotation(ang::Real,u::Point)::Matrix
+function rotation(ang::RealOrDual,u::Point)::Matrix
     a = cos(ang)
     b = sin(ang)
     c = 1-a
@@ -254,32 +267,32 @@ end
 
 
 """
-rotate(p::Point,ang::T,u::Point)::Point
+rotate(p::Point,ang::RealOrDual,u::Point)::Point
 
 Rotate a point `p` an angle `ang` using the plane defined by unit vector `u` by multiplying point `p` by a rotation matrix.
 """
-function rotate(p::Point,ang::Real,u::Point)::Point
+function rotate(p::Point,ang::RealOrDual,u::Point)::Point
     return rotation(ang,u)*p
 end
 
 """
-rotateRodrigues(p::Point,ang::T,u::Point)::Point
+rotateRodrigues(p::Point,ang::RealOrDual,u::Point)::Point
 
 Rotate a point `p` an angle `ang` using the plane defined by unit vector `u` by using Rodrigues rotation forumla
 """
-function rotateRodrigues(p::Point,ang::Real,u::Point)::Point
+function rotateRodrigues(p::Point,ang::RealOrDual,u::Point)::Point
     a = cos(ang)
     b = sin(ang)
     return a*p + b*cross(u,p) + (1-a)*dot(u,p)*u
 end
 
 """
-bangle(a::Point,b::Point,c::Point)::T
+bangle(a::Point,b::Point,c::Point)
 
 Calculates the bond angle between a link defined by points b-a, c-b. 
 The angle is the angle between the links (Colinear points will return pi)
 """
-function bangle(a::Point,b::Point,c::Point)::T
+function bangle(a::Point,b::Point,c::Point)
     u1 = b-a
     u2 = c-b
     ang = dot(u1,u2)/(norm(u1)*norm(u2))
@@ -288,11 +301,11 @@ end
 
 
 """
-dihedral(a::Point,b::Point,c::Point,d::Point)::T
+dihedral(a::Point,b::Point,c::Point,d::Point)
 
 Calculates dihedral angle between the planes defined by points `abc` and `bcd` using the formula in the [Wikipedia article](https://en.wikipedia.org/wiki/Dihedral_angle)
 """
-function dihedral(a::Point,b::Point,c::Point,d::Point)::T
+function dihedral(a::Point,b::Point,c::Point,d::Point)
     u1 = b-a
     u2 = c-b
     u3 = d-c
@@ -303,11 +316,11 @@ function dihedral(a::Point,b::Point,c::Point,d::Point)::T
 end
 
 """
-dihedralSO(a::Point,b::Point,c::Point,d::Point)::T
+dihedralSO(a::Point,b::Point,c::Point,d::Point)
 
 Calculates dihedral angle between the planes defined by points `abc` and `bcd` using the formula in this [Math SE question](https://math.stackexchange.com/questions/47059/how-do-i-calculate-a-dihedral-angle-given-cartesian-coordinates)
 """
-function dihedralSO(a::Point,b::Point,c::Point,d::Point)::T
+function dihedralSO(a::Point,b::Point,c::Point,d::Point)
     b1 = b-a
     b2 = c-b
     b3 = d-c
@@ -319,11 +332,11 @@ function dihedralSO(a::Point,b::Point,c::Point,d::Point)::T
     return -atan(y,x)
 end
 
-function distance(p::Tuple{<:Real,<:Real},q::Tuple{<:Real,<:Real})
+function distance(p::Tuple{<:RealOrDual,<:RealOrDual},q::Tuple{<:RealOrDual,<:RealOrDual})
     return sqrt(pow2(p[1]-q[1]) + pow2(p[2]-q[2]))
 end
 
-function distance(p::Tuple{<:Real,<:Real,<:Real},q::Tuple{<:Real,<:Real,<:Real})
+function distance(p::Tuple{<:RealOrDual,<:RealOrDual,<:RealOrDual},q::Tuple{<:RealOrDual,<:RealOrDual,<:RealOrDual})
     return sqrt(pow2(p[1]-q[1]) + pow2(p[2]-q[2]) + pow2(p[3]-q[3]))
 end
 
@@ -351,7 +364,7 @@ function PolygonalChain(n::Integer)
     return PolygonalChain(A)
 end
 
-function PolygonalChain(arr::Array{<:Real,2})
+function PolygonalChain(arr::Array{<:RealOrDual,2})
     if size(arr)[2] == 3
         A = [Point(arr[i,1],arr[i,2],arr[i,3]) for i in 1:(size(arr)[1])]
         return PolygonalChain(A)
@@ -382,7 +395,7 @@ function Base.lastindex(P::AbstractChain)
     return length(P.vertices)
 end
 
-function toArray(P::AbstractChain)::Array{T,2}
+function toArray(P::AbstractChain)
     return vcat([[p.x p.y p.z] for p in P.vertices]...)
 end
 
@@ -435,11 +448,11 @@ function optimalRotation(P::AbstractChain,Q::AbstractChain)::Matrix
 end
 
 """
-simpleRmsd(P::AbstractChain,Q::AbstractChain)::T
+simpleRmsd(P::AbstractChain,Q::AbstractChain)
 
 Calculates RMSD for two AbstractChains. 
 """
-function simpleRmsd(P::AbstractChain,Q::AbstractChain)::T
+function simpleRmsd(P::AbstractChain,Q::AbstractChain)
     n = length(P)
     if n != length(Q)
         error("Chains must be of same length")
@@ -452,11 +465,11 @@ function simpleRmsd(P::AbstractChain,Q::AbstractChain)::T
 end
 
 """
-overlapedRmsd(P::AbstractChain,Q::AbstractChain)::T
+overlapedRmsd(P::AbstractChain,Q::AbstractChain)
 
 Calculates RMSD for two AbstractChains by centering then and rotating them for maximum overlap
 """
-function overlapedRmsd(P::AbstractChain,Q::AbstractChain)::T
+function overlapedRmsd(P::AbstractChain,Q::AbstractChain)
     P = centerChain(P)
     Q = centerChain(Q)
     mat = optimalRotation(P,Q)
@@ -476,35 +489,36 @@ end
 
 ## Geometrical functions
 
-function linkLengths(P::AbstractChain)::Array{T,1}
+function linkLengths(P::AbstractChain)
     n = length(P)
-    lengths = zeros(T,n)
+    lengths = zeros(typeof(P[1].x),n)
     for i in 1:n
         lengths[i] = distance(P[i],P[i+1])
     end
     return lengths
 end
 
-function linkAngles(P::AbstractChain)::Array{T,1}
+function linkAngles(P::AbstractChain)
     n = length(P)
-    angles = zeros(T,n-1)
+    angles = zeros(typeof(P[1].x),n-1)
     for i in 1:n-1
         angles[i] = bangle(P[i],P[i+1],P[i+2])
     end
     return angles
 end
 
-function dihedralAngles(P::AbstractChain)::Array{T,1}
+function dihedralAngles(P::AbstractChain)
     n = length(P)
-    dihedrals = zeros(T,n-2)
+    dihedrals = zeros(typeof(P[1].x),n-2)
     for i in 1:n-2
         dihedrals[i] = dihedral(P[i],P[i+1],P[i+2],P[i+3])
     end
     return dihedrals
 end
 
-function lengthsAndAngles(P::AbstractChain)::Tuple{Array{T,1},Array{T,1},Array{T,1}}
+function lengthsAndAngles(P::AbstractChain)
     n = length(P)
+    T = typeof(P[1].x)
     lengths = zeros(T,n)
     angles = zeros(T,n-1)
     dihedrals = zeros(T,n-2)
@@ -519,7 +533,7 @@ function lengthsAndAngles(P::AbstractChain)::Tuple{Array{T,1},Array{T,1},Array{T
     return (lengths,angles,dihedrals)
 end
 
-function PolygonalChain(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalChain
+function PolygonalChain(linkLengths::Array{<:RealOrDual,1},linkAngles::Array{<:RealOrDual,1},dihedralAngles::Array{<:RealOrDual,1})::PolygonalChain
     n = length(linkLengths)
     if n == (length(linkAngles)+1) && n == (length(dihedralAngles)+2)
         vertices = Array{Point,1}(undef,n+1)
@@ -544,7 +558,7 @@ function PolygonalChain(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1}
     end
 end
 
-function PolygonalChainRosetta(linkLengths::Array{<:Real,1},linkAngles::Array{<:Real,1},dihedralAngles::Array{<:Real,1})::PolygonalChain
+function PolygonalChainRosetta(linkLengths::Array{<:RealOrDual,1},linkAngles::Array{<:RealOrDual,1},dihedralAngles::Array{<:RealOrDual,1})::PolygonalChain
     n = length(linkLengths)
     if n == (length(linkAngles)+1) && n == (length(dihedralAngles)+2)
         vertices = Array{Point,1}(undef,n+1)
@@ -571,7 +585,7 @@ end
 
 
 
-function dihedralRotate(P::PolygonalChain,i::Integer,phi::Real)::PolygonalChain
+function dihedralRotate(P::PolygonalChain,i::Integer,phi::RealOrDual)::PolygonalChain
     n = length(P)
     if 1 <= i <= n-2
         rotN = unitVector(P[i+2]-P[i+1])
@@ -590,7 +604,7 @@ end
 Same as `dihedralRotate` but for case where chain `P` has already passed
 by `moveBeforeDihedral`
 """
-function dihedralRotateFast(P::PolygonalChain,i::Integer,phi::Real)::PolygonalChain
+function dihedralRotateFast(P::PolygonalChain,i::Integer,phi::RealOrDual)::PolygonalChain
     n = length(P)
     if 1 <= i <= n-2
         rotMat = zrotation(phi)
@@ -607,7 +621,7 @@ end
 """
 Rotating chain inpalce
 """
-function dihedralRotate!(P::PolygonalChain,i::Integer,phi::Real)
+function dihedralRotate!(P::PolygonalChain,i::Integer,phi::RealOrDual)
     n = length(P)
     if 1 <= i <= n-2
         rotN = unitVector(P[i+2]-P[i+1])
@@ -620,7 +634,7 @@ function dihedralRotate!(P::PolygonalChain,i::Integer,phi::Real)
     end
 end
 
-function dihedralRotateFast!(P::PolygonalChain,i::Integer,phi::Real)
+function dihedralRotateFast!(P::PolygonalChain,i::Integer,phi::RealOrDual)
     n = length(P)
     if 1 <= i <= n-2
         rotMat = zrotation(phi)
@@ -632,7 +646,7 @@ function dihedralRotateFast!(P::PolygonalChain,i::Integer,phi::Real)
     end
 end
 
-function internalRotate(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
+function internalRotate(P::PolygonalChain,i::Integer,theta::RealOrDual)::PolygonalChain
     n = length(P)
     if 1 <= i <= n-1
         rotN = unitVector(cross(P[i]-P[i+1],P[i+2]-P[i+1]))
@@ -651,7 +665,7 @@ end
 Same as `internalRotate` but for case where chain `P` has already passed
 by `moveBeforeInternal`
 """
-function internalRotateFast(P::PolygonalChain,i::Integer,theta::Real)::PolygonalChain
+function internalRotateFast(P::PolygonalChain,i::Integer,theta::RealOrDual)::PolygonalChain
     n = length(P)
     if 1 <= i <= n-1
         rotMat = zrotation(theta)
@@ -670,7 +684,7 @@ end
 """
 Rotating chain inpalce
 """
-function internalRotate!(P::PolygonalChain,i::Integer,theta::Real)
+function internalRotate!(P::PolygonalChain,i::Integer,theta::RealOrDual)
     n = length(P)
     if 1 <= i <= n-1
         rotN = unitVector(cross(P[i]-P[i+1],P[i+2]-P[i+1]))
@@ -683,7 +697,7 @@ function internalRotate!(P::PolygonalChain,i::Integer,theta::Real)
     end
 end
 
-function internalRotateFast!(P::PolygonalChain,i::Integer,theta::Real)
+function internalRotateFast!(P::PolygonalChain,i::Integer,theta::RealOrDual)
     n = length(P)
     if 1 <= i <= n-1
         rotMat = zrotation(theta)
@@ -696,17 +710,17 @@ function internalRotateFast!(P::PolygonalChain,i::Integer,theta::Real)
 end
 
 function polygonal(n)
-    lengths = rand(T,n)
-    angles = pi*rand(T,n-1)
-    diheds = pi*([2*rand(T)-1 for i in 1:n-2])
+    lengths = rand(BigFloat,n)
+    angles = pi*rand(BigFloat,n-1)
+    diheds = pi*([2*rand(BigFloat)-1 for i in 1:n-2])
     P = PolygonalOld(lengths,angles,diheds)
     return P
 end
 
 function polygonal2(n)
-    lengths = rand(T,n)
-    angles = pi*rand(T,n-1)
-    diheds = pi*([2*rand(T)-1 for i in 1:n-2])
+    lengths = rand(BigFloat,n)
+    angles = pi*rand(BigFloat,n-1)
+    diheds = pi*([2*rand(BigFloat)-1 for i in 1:n-2])
     P = PolygonalChainRosetta(lengths,angles,diheds)
     return P
 end
@@ -720,13 +734,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
     #println()
     #display(@benchmark polygonal2(m))
     #println()
-    P = PolygonalOld(m)
-    display(@benchmark dihedralRotate(P,10,pi/2))
-    println()
     Q = PolygonalChain(m)    
     display(@benchmark dihedralRotate!(Q,10,pi/2))
     println()
-    P = PolygonalOld(m)
+    P = PolygonalChain(m)
     Q = PolygonalChain([p for p in P.vertices])
     println(simpleRmsd(P,Q))
     P = dihedralRotate(P,10,pi/2)
@@ -742,4 +753,5 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println(P.vertices)
     a = rand(6,3)
     b = PolygonalChain(a)
+    println(typeof(e0))
 end

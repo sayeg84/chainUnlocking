@@ -1,0 +1,9 @@
+(ax*by^2 + ax*bz^2 + ay^2*(bx - cx) + az^2*(bx - cx) - by^2*cx - 
+  bz^2*cx - ax*by*cy + bx*by*cy - 
+  ay*(-2*by*cx + ax*(by - cy) + bx*(by + cy)) - ax*bz*cz + bx*bz*cz - 
+  az*(-2*bz*cx + ax*(bz - cz) + bx*(bz + cz)))
+  /
+  (((ax - bx)^2 + (ay - by)^2 + (az - bz)^2)^(3/2) sqrt(
+  1 - ((ax - bx)*(bx - cx) + (ay - by)*(by - cy) + (az - bz)*(bz - 
+        cz))^2/(((ax - bx)^2 + (ay - by)^2 + (az - bz)^2)*((bx - 
+        cx)^2 + (by - cy)^2 + (bz - cz)^2)))*sqrt((bx - cx)^2 + (by - cy)^2 + (bz - cz)^2))

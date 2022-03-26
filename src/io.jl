@@ -23,7 +23,7 @@ end
 
 function funcValues(Q,ang_idxs,ang_vals,minFunc,lastQ)
     newQ = copy(Q)
-    funcvals = zeros(T,length(ang_vals))
+    funcvals = zeros(typeof(Q[1].x),length(ang_vals))
     funcvals[1] = minFunc(newQ)
     for i in 1:(length(ang_vals)-1)
         if ang_idxs[i]!= 0
@@ -102,7 +102,7 @@ function saveMetaParams(name::AbstractString,parsed_args)
 end
 
 function readChain(name::AbstractString)
-    chain = DelimitedFiles.readdlm(name,',',T)
+    chain = DelimitedFiles.readdlm(name,',',BigFloat)
     return PolygonalChain(chain)
 end
 
@@ -111,7 +111,7 @@ function readSingleSimulation(name::AbstractString)
     lastQ = readChain(string(name,"_lastQ.csv"))
     ang_idxs = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
     ang_idxs = reshape(ang_idxs,length(ang_idxs))
-    ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',T)
+    ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',BigFloat)
     ang_vals = reshape(ang_vals,length(ang_vals))
     return Q, lastQ, ang_idxs, ang_vals
 end
@@ -178,7 +178,7 @@ function readLSimulation(name::AbstractString,burnout::Real; verbose::Bool=true)
             ts_sim[j]        = length(ang_idxs)
             ts_table[i,j]    = length(ang_idxs)
             if burnout < 1
-                fun_vals = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_fun_vals")),',',T)
+                fun_vals = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_fun_vals")),',',BigFloat)
                 ncut    = Int(ceil(burnout*length(ang_idxs)))
                 minfs_sim[j]     = Statistics.mean(fun_vals[ncut:end])
                 minfs_table[i,j] = Statistics.mean(fun_vals[ncut:end])

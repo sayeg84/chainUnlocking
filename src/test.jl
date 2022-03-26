@@ -146,9 +146,9 @@ function testConversion()
 end
 
 function testPolygonal(n)
-    lengths = rand(T,n)
-    angles = pi*rand(T,n-1)
-    diheds = pi*([2*rand(T)-1 for i in 1:n-2])
+    lengths = rand(BigFloat,n)
+    angles = pi*rand(BigFloat,n-1)
+    diheds = pi*([2*rand(BigFloat)-1 for i in 1:n-2])
     P = PolygonalOld(lengths,angles,diheds)
     Q = PolygonalChainRosetta(lengths,angles,diheds)
     e = rmsd(P,Q)
