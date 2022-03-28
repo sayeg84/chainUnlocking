@@ -15,7 +15,7 @@ function rotate!(P::AbstractChain,ang_idx::Integer,alpha::Real)
 end
 
 function saveChain(name::AbstractString,P::AbstractChain)
-    arr = toArray(P)
+    arr = to2DArray(P)
     open(name,"w+") do io
         DelimitedFiles.writedlm(io,arr,',')
     end
@@ -52,7 +52,7 @@ function saveTrajectory(name,Q::AbstractChain,ang_vals,ang_idxs)
     newQ = copy(Q)
     open(name,"w+") do io
         write(io,firstrow)
-        arr = toArray(newQ)
+        arr = to2DArray(newQ)
         coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
         coordinates = join(coordinates,",")
         coordinates = string(coordinates,"\n")
@@ -60,7 +60,7 @@ function saveTrajectory(name,Q::AbstractChain,ang_vals,ang_idxs)
         for i in 1:length(ang_vals)
             if ang_idxs[i]!= 0 
                 rotate!(newQ,ang_idxs[i],ang_vals[i])
-                arr = toArray(newQ)
+                arr = to2DArray(newQ)
                 coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
                 coordinates = join(coordinates,",")
                 coordinates = string(coordinates,"\n")

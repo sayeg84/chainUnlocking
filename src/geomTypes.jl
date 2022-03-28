@@ -364,6 +364,16 @@ function PolygonalChain(n::Integer)
     return PolygonalChain(A)
 end
 
+function PolygonalChain(arr::Array{<:RealOrDual,1})
+    np = length(arr) / 3
+    if isinteger(np)
+        A = [Point(arr[3*i-2],arr[3*i-1],arr[3*i]) for i in 1:Int(np)]
+        return PolygonalChain(A)
+    else
+        error("Array dimensions must be divisible by 3")
+    end
+end
+
 function PolygonalChain(arr::Array{<:RealOrDual,2})
     if size(arr)[2] == 3
         A = [Point(arr[i,1],arr[i,2],arr[i,3]) for i in 1:(size(arr)[1])]
@@ -395,8 +405,13 @@ function Base.lastindex(P::AbstractChain)
     return length(P.vertices)
 end
 
-function toArray(P::AbstractChain)
+function to2DArray(P::AbstractChain)
     return vcat([[p.x p.y p.z] for p in P.vertices]...)
+end
+
+function toArray(P::AbstractChain)
+    arr = to2DArray(P)
+    return reshape(transpose(arr),length(arr))
 end
 
 function centroid(P::AbstractChain)::Point
@@ -438,8 +453,8 @@ Taking as an input two centered (i.e. with centroid 0) AbstractChains P,Q, it us
 """
 
 function optimalRotation(P::AbstractChain,Q::AbstractChain)::Matrix
-    A = toArray(P)
-    B = toArray(Q)
+    A = to2DArray(P)
+    B = to2DArray(Q)
     H = transpose(A)*B
     S = LinearAlgebra.svd(Float64.(H))
     d = sign(LinearAlgebra.det(transpose(S.U*S.Vt)))
@@ -516,7 +531,7 @@ function dihedralAngles(P::AbstractChain)
     return dihedrals
 end
 
-function lengthsAndAngles(P::AbstractChain)
+function internalCoordinates(P::AbstractChain)
     n = length(P)
     T = typeof(P[1].x)
     lengths = zeros(T,n)
@@ -583,7 +598,11 @@ function PolygonalChainRosetta(linkLengths::Array{<:RealOrDual,1},linkAngles::Ar
     end
 end
 
-
+function flatten(P::AbstractChain)::PolygonalChain
+    lengths, ang_vals, dihedrals = internalCoordinates(P)
+    newDiheds = [pi for i in dihedrals]
+    return PolygonalChain(lengths,ang_vals,newDiheds)
+end
 
 function dihedralRotate(P::PolygonalChain,i::Integer,phi::RealOrDual)::PolygonalChain
     n = length(P)
@@ -706,6 +725,121 @@ function internalRotateFast!(P::PolygonalChain,i::Integer,theta::RealOrDual)
         end
     else
         error("$i must be lower than $n")
+    end
+end
+
+########################################################
+
+# Important polygonal chains
+
+########################################################
+
+function circle(t::Real)
+    return (cos(t),sin(t),0)
+end
+
+function treefoil(t::Real)
+    return (cos(t)+2*cos(2*t),sin(t)-2*sin(2*t),2*sin(3t))
+end
+
+function eightKnot(t::Real)
+    return (3*cos(t)+5*cos(3*t),3*sin(t)+5*sin(3*t),sin(5*t/2)*sin(3*t) + sin(4*t) - sin(6*t))
+end
+
+function parametricCurveChain(curv::Function,n::Integer,a::Real=0,b::Real=pi)
+    angs = LinRange(a,b,n)
+    points = [Point{Float64}(curv(ang)...) for ang in angs]
+    return PolygonalChain(points)
+end
+
+function stair(n::Integer)::PolygonalChain
+    #vertices = Array{Point,1}(undef,n+1)
+    vertices = [e0 for i in 1:n+1]
+    vertices[1] = e0
+    vertices[2] = ex
+    for i in 3:(n+1)
+        if mod(i,2) == 1
+            vertices[i] += vertices[i-1]+ ey
+        else
+            vertices[i] += vertices[i-1]+ ex
+        end
+    end
+    return PolygonalChain(vertices)
+end
+
+function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalChain
+    p0 = ex - ep*ey
+    p1 = rotate(ez,-pi/6,ex)
+    p2 = e0
+    p3 = ex
+    p4 = ex + ez
+    p5 = ep*ey
+    p0 = p1 + l*unitVector(p0-p1)
+    p5 = p4 + l*unitVector(p5-p4)
+    points = [p0,p1,p2,p3,p4,p5]
+    return PolygonalChain(points)
+end
+function GenericKnittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalChain
+    p0 = ex - ep*ey
+    p1 = rotate(ez,-pi/6,ex)
+    p2 = e0
+    p3 = ex
+    p4 = ex + ez
+    p5 = ep*ey
+    p0 = p1 + l*unitVector(p0-p1)
+    p5 = p4 + l*unitVector(p5-p4)
+    points = [p0,p1,p2,p3,p4,p5]
+    randP = Point()
+    points = [p + 0.1*(2*randP-Point(1.0,1.0,1.0)) for p in points]
+    return PolygonalChain(points)
+end
+
+function fourKnot(l::Real=sqrt(2);ep::Real=0.1)::PolygonalChain
+    v0 = l*ey + ep*ex
+    v1 = ep*ez
+    v2 = ex
+    v3 = ex + ey
+    v4 = ey + ep*ez
+    v5 = e0
+    v6 = l*ex + ep*ey + ep*ez
+    vertices = [v0,v1,v2,v3,v4,v5,v6]
+    #vertices = [v + 1e-8*Point() for v in vertices]
+    return PolygonalChain(vertices)
+end
+
+function exactFourKnot(l::Real)
+    ang1 = 0.012566
+    ang3 = ang1
+    ang2 = 0.131947
+    ang4 = ang2
+    v2 = ey
+    v3 = e0
+    v4 = ex
+    # first move
+    v1 = v2 + rotate(ex,ang1,-1*ey)
+    v0 = v1 + l*rotate(-1*ey,ang2,unitVector(v1-v2))
+    # second move
+    v5 = v4 + rotate(ey,ang3,-1*ex)
+    v6 = v5 + l*rotate(-1*ex,ang4,unitVector(v5-v4))
+    return PolygonalChain([v0,v1,v2,v3,v4,v5,v6])
+end
+
+function makeGeneric(P::PolygonalChain)
+    tras = 2*Point() - (ex_l + ey_l + ez_l)
+    rot = 2*Point() - (ex_l + ey_l + ez_l)
+    thetarand = 2*pi*rand()
+    rotmat = rotation(thetarand,unitVector(rot))
+    return PolygonalChain([rotmat*(p + tras) for p in P.vertices])
+end
+
+function makeGeneric!(P::PolygonalChain)
+    tras = 2*Point() - (ex_l + ey_l + ez_l)
+    rot = 2*Point() - (ex_l + ey_l + ez_l)
+    thetarand = 2*pi*rand()
+    rotmat = rotation(thetarand,unitVector(rot))
+    n = length(P)
+    for i in 1:n+1
+        P[i] = rotmat*(P[i] + tras)
     end
 end
 

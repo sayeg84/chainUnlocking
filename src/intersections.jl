@@ -70,7 +70,7 @@ linearIndependence(p::Point,q::Point)::Bool
 Uses Julia's LinearAlgebra.rank to check if points p and q are linearly independent.
 """
 function linearIndependence(p::Point,q::Point)::Bool
-    A = hcat(toArray(p),toArray(q))
+    A = hcat(to2DArray(p),to2DArray(q))
     return LinearAlgebra.rank(A) == 2
 end
 

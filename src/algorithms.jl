@@ -1,71 +1,8 @@
 include("intersections.jl")
 
+using IterativeSolvers # julia's `\` operator is not good for solving this systems
 using Statistics
 
-
-function stair(n::Integer)::PolygonalChain
-    #vertices = Array{Point,1}(undef,n+1)
-    vertices = [e0 for i in 1:n+1]
-    vertices[1] = e0
-    vertices[2] = ex
-    for i in 3:(n+1)
-        if mod(i,2) == 1
-            vertices[i] += vertices[i-1]+ ey
-        else
-            vertices[i] += vertices[i-1]+ ex
-        end
-    end
-    return PolygonalChain(vertices)
-end
-
-function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalChain
-    p0 = ex - ep*ey
-    p1 = rotate(ez,-pi/6,ex)
-    p2 = e0
-    p3 = ex
-    p4 = ex + ez
-    p5 = ep*ey
-    p0 = p1 + l*unitVector(p0-p1)
-    p5 = p4 + l*unitVector(p5-p4)
-    points = [p0,p1,p2,p3,p4,p5]
-    return PolygonalChain(points)
-end
-
-function fourKnot(l::Real=sqrt(2);ep::Real=0.1)::PolygonalChain
-    v0 = l*ey + ep*ex
-    v1 = ep*ez
-    v2 = ex
-    v3 = ex + ey
-    v4 = ey + ep*ez
-    v5 = e0
-    v6 = l*ex + ep*ey + ep*ez
-    vertices = [v0,v1,v2,v3,v4,v5,v6]
-    #vertices = [v + 1e-8*Point() for v in vertices]
-    return PolygonalChain(vertices)
-end
-
-function exactFourKnot(l::Real)
-    ang1 = 0.012566
-    ang3 = ang1
-    ang2 = 0.131947
-    ang4 = ang2
-    v2 = ey
-    v3 = e0
-    v4 = ex
-    # first move
-    v1 = v2 + rotate(ex,ang1,-1*ey)
-    v0 = v1 + l*rotate(-1*ey,ang2,unitVector(v1-v2))
-    # second move
-    v5 = v4 + rotate(ey,ang3,-1*ex)
-    v6 = v5 + l*rotate(-1*ex,ang4,unitVector(v5-v4))
-    return PolygonalChain([v0,v1,v2,v3,v4,v5,v6])
-end
-
-function flatten(P::AbstractChain)::PolygonalChain
-    lengths, ang_vals, dihedrals = lengthsAndAngles(P)
-    newDiheds = [pi for i in dihedrals]
-    return PolygonalChain(lengths,ang_vals,newDiheds)
-end
 
 function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))
     if length(P) == length(Q)
@@ -115,7 +52,7 @@ function tangentPointKernel(p::Point,q::Point,tang::Point,alpha::Real,beta::Real
     return norm(cross(tang,dir))^alpha/norm(dir)^beta
 end
 
-function tangentPointDiscrete(Q::AbstractChain,i::Integer,j::Integer,
+function tangentPointDiscreteKernel(Q::AbstractChain,i::Integer,j::Integer,
                             alpha::Real,beta::Real)
     sum = 0.0
     tang = unitVector(Q[i+1] - Q[i])
@@ -129,14 +66,16 @@ function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)
     n = length(Q)
     sum = 0
     for i in 1:n
-        
+        li = distance(Q[i+1],Q[i])
         for j in 1:(i-2)
-            sum += tangentPointDiscrete(Q,i,j,alpha,beta)
+            lj = distance(Q[j+1],Q[j])
+            sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
         end
-         
-        for j in (i+2):n
-            sum += tangentPointDiscrete(Q,i,j,alpha,beta)
-        end
+
+        #for j in (i+2):n
+        #    lj = distance(Q[j+1],Q[j])
+        #    sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
+        #end
     end
     return sum
 end
@@ -356,65 +295,6 @@ function simulatedAnnealing(Q::PolygonalChain,
 end
 
 #=
-function simulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
-    # preprocessing
-    if minFunc == distToFlat
-        auxQ = flatten(Q)
-        minFunc = Q -> distToFlat(Q,auxQ)
-    end
-    ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(typeof(Q[1].x),max_iter)
-    fun_vals = zeros(typeof(Q[1].x),max_iter)
-    nq = length(Q)
-    debug && println("bien aca")
-    temp = temp_init*minFunc(Q)
-    delta_temp = (temp - 1e-6)/max_iter
-    debug && println("intermedio")
-    d = minFunc(Q)
-    debug && println("mal aca")
-    c = 1
-    while d > tolerance && c <= max_iter
-        phi = rand()*(phimax-phimin) + phimin
-        dihed = rand(1:(nq-2))
-        debug && println(c)
-        debug && println()
-        debug && println(i)
-        debug && println(Q)
-        debug && println(linkLengths(Q))
-        newQ = moveBeforeDihedral(Q,dihed)
-        debug && println(newQ)
-        debug && println(linkLengths(newQ))
-        inter_flag = checkRotationIntersection(newQ,dihed,phi)
-        newQ = dihedralRotate(newQ,dihed,phi)
-        dnew = minFunc(newQ)
-        debug && println(c)
-        debug && println(inter_flag)
-        if !inter_flag && dnew < d
-            Q = newQ
-            d = dnew
-            ang_idxs[c] = dihed
-            ang_vals[c] = phi
-            fun_vals[c] = dnew
-        elseif !inter_flag && dnew >= d
-            r = log(rand())
-            p = (-dnew + d)/temp
-            if r < p
-                Q = newQ
-                d = dnew
-                ang_idxs[c] = dihed
-                ang_vals[c] = phi
-                fun_vals[c] = dnew
-            else
-                fun_vals[c] = d
-            end
-        else
-            fun_vals[c] = d
-        end
-        c += 1
-        temp -= delta_temp
-    end
-    return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals[1:(c-1)]
-end
 
 function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
     # preprocessing
@@ -476,64 +356,6 @@ function specialSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance
     return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals[1:(c-1)]
 end
 
-
-function linearSimulatedAnnealing(Q::PolygonalChain,minFunc::Function,tolerance::Real=1e-2,phimax::Real=pi/2,phimin::Real=-pi/2; temp_init = 1,max_iter::Integer=1000,debug::Bool=false)
-    # preprocessing
-    if minFunc == distToFlat
-        auxQ = flatten(Q)
-        minFunc = Q -> distToFlat(Q,auxQ)
-    end
-    ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(typeof(Q[1].x),max_iter)
-    fun_vals = zeros(typeof(Q[1].x),max_iter)
-    nq = length(Q)
-    debug && println("bien aca")
-    temp_range = range(temp_init*minFunc(Q),stop=1e-6,length=max_iter)
-    debug && println("intermedio")
-    d = minFunc(Q)
-    debug && println("mal aca")
-    c = 1
-    while d > tolerance && c <= max_iter
-        phi = rand()*(phimax-phimin) + phimin
-        dihed = rand(1:(nq-2))
-        debug && println(c)
-        debug && println()
-        debug && println(i)
-        debug && println(Q)
-        debug && println(linkLengths(Q))
-        newQ = moveBeforeDihedral(Q,dihed)
-        debug && println(newQ)
-        debug && println(linkLengths(newQ))
-        inter_flag = checkRotationIntersection(newQ,dihed,phi)
-        newQ = dihedralRotate(newQ,dihed,phi)
-        dnew = minFunc(newQ)
-        debug && println(c)
-        debug && println(inter_flag)
-        if !inter_flag && dnew < d
-            Q = newQ
-            d = dnew
-            ang_idxs[c] = dihed
-            ang_vals[c] = phi
-            fun_vals[c] = dnew
-        elseif !inter_flag && dnew >= d
-            r = log(rand())
-            p = (-dnew + d)/temp_range[c]
-            if r < p
-                Q = newQ
-                d = dnew
-                ang_idxs[c] = dihed
-                ang_vals[c] = phi
-                fun_vals[c] = dnew
-            else
-                fun_vals[c] = d
-            end
-        else
-            fun_vals[c] = d
-        end
-        c += 1
-    end
-    return Q,ang_vals[1:(c-1)],ang_idxs[1:(c-1)],fun_vals
-end
 =#
 
 function weight(P::PolygonalChain,i::Integer,j::Integer,sigma::Real=0.75)
@@ -879,7 +701,7 @@ function constraintsJacobian(P::PolygonalChain,internal::Bool)
             C[i,3*i+3] = (P[i+1]-P[i]).z/l
         end
         # internal angle restrictions
-        arr = toArray(P)
+        arr = to2DArray(P)
         for i in 1:n-1
             lim1 = 3*i-2
             lim2 = 3*i+6
@@ -913,7 +735,7 @@ function constraintsJacobian3(P::PolygonalChain,internal::Bool)
             C[i,3*i+1:3*i+3] = grad2
         end
         # internal angle restrictions
-        arr = toArray(P)
+        arr = to2DArray(P)
         for i in 1:n-1
             grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
             grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
@@ -954,7 +776,7 @@ function constraintsJacobian4(P::PolygonalChain,internal::Bool)
             C[i,3*i+3] = (P[i+1]-P[i]).z/l
         end
         # internal angle restrictions
-        arr = toArray(P)
+        arr = to2DArray(P)
         for i in 1:n-1
             grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
             grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
@@ -989,7 +811,7 @@ function constraintsJacobian2(P::PolygonalChain,internal::Bool)
             C[i,:] = grad
         end
         # internal angle restrictions
-        arr = toArray(P)
+        arr = to2DArray(P)
         for i in 1:n-1
             grad = diff(Q->bangle(Q[i],Q[i+1],Q[i+2]),P)
             C[n+i,:] = grad
@@ -999,8 +821,138 @@ function constraintsJacobian2(P::PolygonalChain,internal::Bool)
 end
 
 
+function movement(P::PolygonalChain,internal::Bool,
+    ls::Array{<:Real,1},bas::Array{<:Real,1},das::Array{<:Real,1},
+    alpha::Real=2.0,beta::Real=4.5;
+    debug::Bool=false,tau::Real=1e-2)
+    sigma = ((beta-1)/alpha)-1
+    n = length(P)
+    T = typeof(P[1].x)
+    k = internal ? n : 2*n-1
+    ener = Q -> tangentEnergy(Q,alpha=alpha,beta=beta)
+    ener_grad = diff(ener,P)
+    #println(ener_grad)
+    #ener_grad = reshape(ener_grad,(3,n+1))
+    #ener_grad = transpose(ener_grad)
+    #ener_grad = reshape(ener_grad,length(ener_grad))
+    #println(ener_grad)
+    Al = Aline(P,sigma)
+    C = constraintsJacobian4(P,internal)
+    mat = vcat(
+        hcat(Al,transpose(C)),
+        hcat(C,zeros(T,k,k))
+    )
+    ener_grad_ext = vcat(ener_grad,zeros(T,k))
+    cons_proy_dir = IterativeSolvers.minres(mat,ener_grad_ext)
+    if debug
+        
+        open("Al.csv","w+") do io
+            writedlm(io,Al,',')
+        end
+        open("mat.csv","w+") do io
+            writedlm(io,mat,',')
+        end
+        open("ener.csv","w+") do io
+            writedlm(io,ener_grad,',')
+        end
+        println("\n Al \n\n")
+        display(Al)
+        println()
+        println("\n rank(Al) \n\n")
+        display(rank(Al))
+        println()
+        println("\n ener_grad \n\n")
+        display(ener_grad)
+        println()
+        #=
+        sol = Al \ ener_grad
+        println("\n sol \n\n")
+        display(sol)
+        println()
+        println("\n Al*sol - ener_grad \n\n")
+        display(Al*sol - ener_grad)
+        =#
+        println()
+        println("\n mat \n\n")
+        display(mat)
+        println()
+        println("\n ener_grad_ext \n\n")
+        display(ener_grad_ext)
+        println()
+        println("\n cons_proy_dir \n\n")
+        display(cons_proy_dir)
+        println()
+        println("\n mat*cons_proy_dir - ener_grad_ext \n\n")
+        display(mat*cons_proy_dir - ener_grad_ext)
+        println()
+        println()
+        println("\n cons_proy_dir \n\n")
+        display(cons_proy_dir)
+        println()
+        
+    end
+    new_chain = toArray(P)-tau*cons_proy_dir[1:(3*n+3)]
+    if debug
+        println()
+        println("\n new_chain \n\n")
+        display(new_chain)
+        println()
+    end
+    cons   = constraints(new_chain,ls,bas,das,internal)
+    newSol = vcat(zeros(T,3*n+3),-1*cons)
+    chain_proy_dir = IterativeSolvers.minres(mat,newSol)
+    new_chain = new_chain + chain_proy_dir[1:(3*n+3)]
+    c = 0
+    cons = constraints(new_chain,ls,bas,das,internal)
+    con_norm = LinearAlgebra.norm(cons,2)
+    while con_norm > 1e-4 && c < 10
+        if debug
+            println("\n")
+            println(con_norm)
+            println("\n")
+            display(cons)
+            println("\n")
+        end
+        c += 1
+        newSol[3*n+4:end] = -1*cons
+        IterativeSolvers.minres!(chain_proy_dir,mat,newSol)
+        new_chain = new_chain + chain_proy_dir[1:(3*n+3)]
+        cons = constraints(new_chain,ls,bas,das,internal)
+        con_norm = LinearAlgebra.norm(cons,2)
+    end
+    if debug
+        println("\n c \n\n")
+        println(c)
+        println()
+        println("\n cons \n\n")
+        display(cons)
+        println()
+        println("\n chain_proy_dir \n\n")
+        display(chain_proy_dir)
+        println()
+        println("\n new_chain_final \n\n")
+        display(new_chain)
+        println()
+    end
+    return new_chain
+end
 
-function assertEqualJac(n)
+function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;debug::Bool=false,renom::Bool=false)
+    Q = copy(P)
+    ls,bas,das = internalCoordinates(P)
+    n = length(P)
+    T = typeof(P[1].x)
+    res = zeros(T,iter+1,3*n+3)
+    res[1,:] = toArray(Q)
+    for i in 1:iter
+        newQ = PolygonalChain(res[i,:])
+        res[i+1,:] = movement(newQ,true,ls,bas,das,alpha,beta,debug=debug)
+    end
+    return res
+end
+
+
+function assertEqualJac(n::Integer)
     eq_flag = false
     for i in 1:n
         C1 = constraintsJacobian(P,false)
@@ -1038,87 +990,20 @@ function benchConsJac4()
     constraintsJacobian4(P,false)
 end
 
-function movement(P::PolygonalChain,internal::Bool)
-    alpha=2
-    beta=4.5
-    sigma = (beta-1)/alpha-1
-    println(sigma)
-    aux = Amatrix(P,sigma)
-    Al = Aline(P,sigma)
-    n = length(P)
-    T = typeof(P[1].x)
-    k = internal ? n : 2*n-1
-    C = constraintsJacobian4(P,internal)
-    println("in movement")
-    println(P)
-    enerGrad = diff(tangentEnergyFrac,P)
-    #println(enerGrad)
-    #enerGrad = reshape(enerGrad,(3,n+1))
-    #enerGrad = transpose(enerGrad)
-    #enerGrad = reshape(enerGrad,length(enerGrad))
-    #println(enerGrad)
-    mat = vcat(
-        hcat(Al,transpose(C)),
-        hcat(C,zeros(T,k,k))
-    )
-    b = vcat(enerGrad,zeros(T,k))
-    naiveDir = mat \ b
-    aux = reshape(toArray(P),3*n+3) -  1e-4*b[1:(3*n+3)]
-    ls,bas,das = lengthsAndAngles(P)
-    cons = constraints(aux,ls,bas,das,internal)
-    newSol = vcat(zeros(T,3*n+3),-1*cons)
-    naiveDir2 = mat \ newSol
-    println()
-    display(Al)
-    println()
-    println()
-    display(mat)
-    println()
-    println()
-    display(enerGrad)
-    println()
-    println()
-    display(naiveDir)
-    println()
-    println()
-    sol = Al \ enerGrad
-    display(sol)
-    println()
-    display(Al*sol)
-    println()
-    println()
-    display(cons)
-    println()
-    println()
-    display(naiveDir2)
-    println()
-end
-
-function sobolevGradientDescent()
-    for i in 1:n
-
-    end
-end
-
-function halfCircle(n)
-    angs = LinRange(0,2*pi,n)
-    points = [Point{Float64}(cos(x),sin(x),0) for x in angs]
-    return PolygonalChain(points)
-end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    a = Point()
-    b = Point()
-    c = Point()
-    println(jacobian(bangle,hcat(toArray(a),toArray(b),toArray(c)),1e-3;df=hyperdualPartialDerivative))
-    println(bangleDev(a,b,c))
-    aux(p::Point) = bangle(p,b,c)
-    println(diff(aux,a))
-    aux2(P::PolygonalChain) = bangle(P[1],P[2],P[3])
-    println(diff(aux2,PolygonalChain([a,b,c])))
-    P = PolygonalChain(6)
-    println(P)
-    P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])
+    test = false
+    if test
+        a = Point()
+        b = Point()
+        c = Point()
+        println(jacobian(bangle,hcat(toArray(a),toArray(b),toArray(c)),1e-3;df=hyperdualPartialDerivative))
+        println(bangleDev(a,b,c))
+        auxFunc(p::Point) = bangle(p,b,c)
+        println(diff(auxFunc,a))
+        aux2(P::PolygonalChain) = bangle(P[1],P[2],P[3])
+        println(diff(aux2,PolygonalChain([a,b,c])))
+    end
     bench = false
     if bench
         using BenchmarkTools
@@ -1137,6 +1022,23 @@ if abspath(PROGRAM_FILE) == @__FILE__
         println()
         println()
     end
-    #P = halfCircle(20)
-    movement(P,true)
+    #P = PolygonalChain(6)
+    #P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])
+    #P = parametricCurveChain(treefoil,30,0,deg2rad(315))
+    #=
+    ls,bas,das = internalCoordinates(P)
+    mov = movement(P,true,ls,bas,das,debug=true)
+    
+    Q = PolygonalChain(mov)
+    ls,bas,das = internalCoordinates(Q)
+    
+    P = knittingNeedle(2.23)
+    P = PolygonalChain([Point(Float64,p) for p in P.vertices])
+    println(P)
+    res = sobolevGradientDescent(P,1000,renom=false)
+    println("\n")
+    display(res)
+    println("\n")
+    println(PolygonalChain(res[end,:]))
+    =#
 end

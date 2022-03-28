@@ -128,7 +128,7 @@ function testConversion()
     d = rotate(aux1,dihed,aux2)
     d = c + lengths[3]*d
     P = PolygonalOld((a,b,c,d))
-    arr = lengthsAndAngles(P)
+    arr = internalCoordinates(P)
     Q = PolygonalChainRosetta(arr[1],arr[2],arr[3])
     optimalRotation(P,Q)
     R = (norm(angles - arr[2]) < 1e-6) && (norm(angles - arr[2]) < 1e-6) && (abs(dihed - arr[3][1]) < 1e-6)
@@ -160,13 +160,13 @@ function testPolygonal(n)
         println(lengths)
         println(angles)
         println(dihed)
-        arr1 = lengthsAndAngles(P)
-        arr2 = lengthsAndAngles(Q)
-        display(toArray(P))
+        arr1 = internalCoordinates(P)
+        arr2 = internalCoordinates(Q)
+        display(to2DArray(P))
         println()
         display(arr1)
         println()
-        display(toArray(Q))
+        display(to2DArray(Q))
         println()
         display(arr2)
         println()
@@ -340,13 +340,13 @@ function plotPointRotation!(p::Point,alpha::Real;lw::Real=1,color="black",alpha_
 end
 
 function plotChain!(P::AbstractChain,c="red",lw=2)
-    arr = toArray(P)
+    arr = to2DArray(P)
     scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",markersize=3)
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
 end
 
 function plotChainSeries!(P::AbstractChain,c="red",lw=2)
-    arr = toArray(P)
+    arr = to2DArray(P)
     scatter!(arr[:,1],arr[:,2],arr[:,3],color=c,xlabel="x",ylabel="y",zlabel="z",marker_z=1:(length(P)+1),seriescolor=c,markersize=3)
     plot!(arr[:,1],arr[:,2],arr[:,3],color="black",lw=lw)
 end
@@ -415,7 +415,7 @@ function testMoveBeforeDihedral(m::Integer=1000,n::Integer=20)
             println("fail")
             println(t)
             println(i)
-            println(toArray(newP))
+            println(to2DArray(newP))
         end
     end
 end
@@ -431,7 +431,7 @@ function testMoveBeforeInternal(m::Integer=1000,n::Integer=20)
             println("fail")
             println(t)
             println(i)
-            println(toArray(newP))
+            println(to2DArray(newP))
         end
     end
 end

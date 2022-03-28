@@ -7,3 +7,4 @@ outputs/*
 *.pdf
 *.zip
 logs*
+log*
