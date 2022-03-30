@@ -444,7 +444,7 @@ function centerChain!(P::PolygonalChain)
     end
 end
 
-using GenericLinearAlgebra
+#using GenericLinearAlgebra
 
 """
 optimalRotation(P::AbstractChain,Q::AbstractChain)::Matrix
@@ -746,6 +746,18 @@ function eightKnot(t::Real)
     return (3*cos(t)+5*cos(3*t),3*sin(t)+5*sin(3*t),sin(5*t/2)*sin(3*t) + sin(4*t) - sin(6*t))
 end
 
+function eightKnotTight(t::Real)
+    return (sin(t) + t/10, sin(t)*cos(t/2), sin(2*t)*sin(t/2)/4)
+end
+
+function polynomialTrefoil(t::Real)
+    return (t^3 - 3*t, t^4 - 4*t^2, t^5/5 - 2*t)
+end
+
+function polynomialEight(t::Real)
+    return (2/5*t*(t^2 - 7)*(t^2 - 10), t^4 - 13*t^2, 1/10*(t^7 - 31*t^5 + 164*t^3 + 560*t))
+end
+
 function parametricCurveChain(curv::Function,n::Integer,a::Real=0,b::Real=pi)
     angs = LinRange(a,b,n)
     points = [Point{Float64}(curv(ang)...) for ang in angs]
@@ -779,6 +791,8 @@ function knittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalChain
     points = [p0,p1,p2,p3,p4,p5]
     return PolygonalChain(points)
 end
+
+
 function GenericKnittingNeedle(l::Real=2.0;ep::Real=1/6)::PolygonalChain
     p0 = ex - ep*ey
     p1 = rotate(ez,-pi/6,ex)

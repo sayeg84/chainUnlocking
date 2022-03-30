@@ -55,11 +55,24 @@ end
 function tangentPointDiscreteKernel(Q::AbstractChain,i::Integer,j::Integer,
                             alpha::Real,beta::Real)
     sum = 0.0
-    tang = unitVector(Q[i+1] - Q[i])
+    Ti = unitVector(Q[i+1] - Q[i])
     for a in 0:1, b in 0:1
-        sum += tangentPointKernel(Q[i+a],Q[j+b],tang,alpha,beta)
+        sum += tangentPointKernel(Q[i+a],Q[j+b],Ti,alpha,beta)
     end
     return sum/4
+end
+
+function tangentEnergy2(Q::AbstractChain;alpha::Real=3,beta::Real=6)
+    n = length(Q)
+    sum = 0
+    for i in 1:n
+        li = distance(Q[i+1],Q[i])
+        for j in (i+2):n
+            lj = distance(Q[j+1],Q[j])
+            sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
+        end
+    end
+    return sum
 end
 
 function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)
@@ -71,14 +84,15 @@ function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)
             lj = distance(Q[j+1],Q[j])
             sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
         end
-
-        #for j in (i+2):n
-        #    lj = distance(Q[j+1],Q[j])
-        #    sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
-        #end
+        for j in (i+2):n
+            lj = distance(Q[j+1],Q[j])
+            sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
+        end
     end
     return sum
 end
+
+
 
 function tangentEnergyFrac(Q::AbstractChain)
     return tangentEnergy(Q,alpha=2,beta=4.5)
@@ -391,8 +405,8 @@ function Bmatrix(P::PolygonalChain,sigma::Real=0.75;debug::Bool=false)
             tij = dot(Ti,Tj)
             wij = weight(P,i,j,li,lj,sigma)
             if debug
-                println("i=$i")
-                println("j=$j")
+                println("i = $i")
+                println("j = $j")
                 println("li = $li")
                 println("lj = $lj")
                 println("Ti = $Ti")
@@ -430,7 +444,7 @@ function weight0(P::PolygonalChain,i::Integer,j::Integer,li::Real,lj::Real,Ti::P
     for a in 0:1, b in 0:1
         weight += tangentPointKernel(P[i+a],P[j+a],Ti,2,4)/(distance(P[i+a],P[j+b])^(2*sigma+1)) 
     end
-    weight  = weight*li*lj/4
+    weight = weight*li*lj/4
     return weight
 end
 
@@ -458,10 +472,29 @@ function Amatrix(P::PolygonalChain,sigma::Real=0.75)
     B  = zeros(T,n+1,n+1)
     B0 = zeros(T,n+1,n+1)
     for i in 1:n
-        for j in i+2:n
-            li = distance(P[i+1],P[i])
+        li = distance(P[i+1],P[i])
+        Ti = (P[i+1]-P[i])/li
+        for j in 1:(i-2)
             lj = distance(P[j+1],P[j])
-            Ti = (P[i+1]-P[i])/li
+            Tj = (P[j+1]-P[j])/lj
+            tij = dot(Ti,Tj)
+            wij = weight(P,i,j,li,lj,sigma)
+            denom = li*lj
+            w0ij = weight0(P,i,j,li,lj,Ti,sigma)/4
+            for a in 0:1, b in 0:1
+                sign = (-1)^(a+b)
+                B[i+a,i+b] += sign*wij/li^2
+                B[j+a,j+b] += sign*wij/lj^2
+                B[i+a,j+b] -= sign*wij*tij/denom
+                B[j+a,i+b] -= sign*wij*tij/denom
+                B0[i+a,i+b] += w0ij
+                B0[j+a,j+b] += w0ij
+                B0[i+a,j+b] -= w0ij
+                B0[j+a,i+b] -= w0ij
+            end
+        end
+        for j in i+2:n
+            lj = distance(P[j+1],P[j])
             Tj = (P[j+1]-P[j])/lj
             tij = dot(Ti,Tj)
             wij = weight(P,i,j,li,lj,sigma)
@@ -633,14 +666,15 @@ using DelimitedFiles
 
 function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     n = length(P)
+    T = typeof(P[1].x)
     if internal
-        res = zeros(n)
+        res = zeros(T,n)
         for i in 1:n
             res[i] = distance(P[i+1],P[i])-ls[i]
         end
         return res
     else
-        res = zeros(2*n-1)
+        res = zeros(T,2*n-1)
         for i in 1:n
             res[i] = distance(P[i+1],P[i])-ls[i]
         end
@@ -654,14 +688,15 @@ end
 
 function constraints(arr::Array{<:Real,1},ls,bas,das,internal::Bool)
     n = length(ls)
+    T = typeof(arr[1])
     if internal
-        res = zeros(n)
+        res = zeros(T,n)
         for i in 1:n
             res[i] = distance(arr[3*i-2:3*i+3])-ls[i]
         end
         return res
     else
-        res = zeros(2*n-1)
+        res = zeros(T,2*n-1)
         for i in 1:n
             res[i] = distance(arr[3*i-2:3*i+3])-ls[i]
         end
@@ -824,7 +859,7 @@ end
 function movement(P::PolygonalChain,internal::Bool,
     ls::Array{<:Real,1},bas::Array{<:Real,1},das::Array{<:Real,1},
     alpha::Real=2.0,beta::Real=4.5;
-    debug::Bool=false,tau::Real=1e-2)
+    tau::Real=1e-2,debug::Bool=false)
     sigma = ((beta-1)/alpha)-1
     n = length(P)
     T = typeof(P[1].x)
@@ -845,14 +880,13 @@ function movement(P::PolygonalChain,internal::Bool,
     ener_grad_ext = vcat(ener_grad,zeros(T,k))
     cons_proy_dir = IterativeSolvers.minres(mat,ener_grad_ext)
     if debug
-        
-        open("Al.csv","w+") do io
+        open("../extra/Al.csv","w+") do io
             writedlm(io,Al,',')
         end
-        open("mat.csv","w+") do io
+        open("../extra/mat.csv","w+") do io
             writedlm(io,mat,',')
         end
-        open("ener.csv","w+") do io
+        open("../extra/ener.csv","w+") do io
             writedlm(io,ener_grad,',')
         end
         println("\n Al \n\n")
@@ -937,7 +971,7 @@ function movement(P::PolygonalChain,internal::Bool,
     return new_chain
 end
 
-function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;debug::Bool=false,renom::Bool=false)
+function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;tau::Real=1e-2,debug::Bool=false,renom::Bool=false)
     Q = copy(P)
     ls,bas,das = internalCoordinates(P)
     n = length(P)
@@ -945,8 +979,11 @@ function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0
     res = zeros(T,iter+1,3*n+3)
     res[1,:] = toArray(Q)
     for i in 1:iter
+        if i % 100 == 0
+            println("iter = $i")
+        end
         newQ = PolygonalChain(res[i,:])
-        res[i+1,:] = movement(newQ,true,ls,bas,das,alpha,beta,debug=debug)
+        res[i+1,:] = movement(newQ,true,ls,bas,das,alpha,beta,tau=tau,debug=debug)
     end
     return res
 end
@@ -1024,9 +1061,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
     end
     #P = PolygonalChain(6)
     #P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])
-    #P = parametricCurveChain(treefoil,30,0,deg2rad(315))
-    #=
+    P = parametricCurveChain(treefoil,30,0,deg2rad(315))
+    
     ls,bas,das = internalCoordinates(P)
+    #=
     mov = movement(P,true,ls,bas,das,debug=true)
     
     Q = PolygonalChain(mov)
@@ -1035,7 +1073,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
     P = knittingNeedle(2.23)
     P = PolygonalChain([Point(Float64,p) for p in P.vertices])
     println(P)
+    =#
     res = sobolevGradientDescent(P,1000,renom=false)
+    saveTrajectory()
+    #=
     println("\n")
     display(res)
     println("\n")

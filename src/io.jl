@@ -21,7 +21,7 @@ function saveChain(name::AbstractString,P::AbstractChain)
     end
 end
 
-function funcValues(Q,ang_idxs,ang_vals,minFunc,lastQ)
+function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<:Real,1},minFunc)
     newQ = copy(Q)
     funcvals = zeros(typeof(Q[1].x),length(ang_vals))
     funcvals[1] = minFunc(newQ)
@@ -40,7 +40,7 @@ function funcValues(Q,ang_idxs,ang_vals,minFunc,lastQ)
 end
 
 
-function saveTrajectory(name,Q::AbstractChain,ang_vals,ang_idxs)
+function saveTrajectory(name::AbstractString,Q::AbstractChain,ang_vals::Array{<:Real,1},ang_idxs::Array{<:Real,1})
     ns = length(Q)+1
     nzeros = Int(ceil(log10(ns+1)))
     # padding the number with zeros to the right in order to have no problems if sorting
@@ -70,7 +70,24 @@ function saveTrajectory(name,Q::AbstractChain,ang_vals,ang_idxs)
     end
 end
 
-function saveSimulation(name,Q,lastQ,ang_vals,ang_idxs;saveTrajec=true)
+function saveTrajectory(name::AbstractString,Q::AbstractChain,res::Array{<:Real,2})
+    ns = length(Q)+1
+    nzeros = Int(ceil(log10(ns+1)))
+    # padding the number with zeros to the right in order to have no problems if sorting
+    pnames = [lpad(i,nzeros,'0') for i in 1:ns]
+    pnames = [string("p",i) for i in pnames]
+    pnames = [string(i,c) for i in pnames for c in ("x","y","z")]
+    firstrow = join(pnames,',')
+    firstrow = string(firstrow,"\n")
+    newQ = copy(Q)
+    open(name,"w+") do io
+        write(io,firstrow)
+        DelimitedFiles.writedlm(io,res,',')
+    end
+end
+
+function saveSimulation(name::AbstractString,Q::AbstractChain,lastQ::AbstractChain,
+    ang_vals::Array{<:Real,1},ang_idxs::Array{<:Real,1};saveTrajec=true)
     saveChain(string(name,"_Q.csv"),Q)
     saveChain(string(name,"_lastQ.csv"),lastQ)
     if saveTrajec
@@ -84,7 +101,7 @@ function saveSimulation(name,Q,lastQ,ang_vals,ang_idxs;saveTrajec=true)
     end
 end
 
-function saveLtable(name::AbstractString,ls::AbstractArray)
+function saveLtable(name::AbstractString,ls::Array{<:Real,1})
     open(joinpath(name,"ls.csv"),"w+") do io
         DelimitedFiles.writedlm(io,ls,',')
     end
@@ -125,7 +142,7 @@ function readMetaParams(name::AbstractString)
 end
 
 
-function readLSimulation(name::AbstractString,burnout::Real; verbose::Bool=true)
+function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
@@ -198,7 +215,7 @@ end
 
 
 
-function makeCoordinates(name)
+function makeCoordinates(name::AbstractString)
     Q = readChain(string(name,"_Q.csv"))
     ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"))
     ang_vals = reshape(ang_vals,length(ang_vals))

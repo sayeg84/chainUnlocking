@@ -68,6 +68,10 @@ function parse_commandline()
             help = "Tolerance for minimum value of function"
             arg_type = Float64
             default = 1e-2
+        "--time_step"
+            help = "Time step size. Only applies to sobolev gradient descent"
+            arg_type = Float64
+            default = 1e-2
         "--internal"
             help= "Flag to indicate if internal angles are also allowed to be changed"
             action = :store_true
