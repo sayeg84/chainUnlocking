@@ -838,7 +838,7 @@ function exactFourKnot(l::Real)
     return PolygonalChain([v0,v1,v2,v3,v4,v5,v6])
 end
 
-function makeGeneric(P::PolygonalChain)
+function randomRigidTransform(P::PolygonalChain)
     tras = 2*Point() - (ex_l + ey_l + ez_l)
     rot = 2*Point() - (ex_l + ey_l + ez_l)
     thetarand = 2*pi*rand()
@@ -846,7 +846,7 @@ function makeGeneric(P::PolygonalChain)
     return PolygonalChain([rotmat*(p + tras) for p in P.vertices])
 end
 
-function makeGeneric!(P::PolygonalChain)
+function randomRigidTransform(P::PolygonalChain)
     tras = 2*Point() - (ex_l + ey_l + ez_l)
     rot = 2*Point() - (ex_l + ey_l + ez_l)
     thetarand = 2*pi*rand()
@@ -854,6 +854,17 @@ function makeGeneric!(P::PolygonalChain)
     n = length(P)
     for i in 1:n+1
         P[i] = rotmat*(P[i] + tras)
+    end
+end
+
+function perturbe(P::PolygonalChain,s::Real=1e-2)
+    return PolygonalChain([p+s*(2*Point()-Point(1.0,1.0,1.0)) for p in P.vertices])
+end
+
+function perturbe!(P::PolygonalChain,s::Real=1e-2)
+    n = length(P)
+    for i in 1:n+1
+        P[i] += s*(2*Point()-Point(1.0,1.0,1.0))
     end
 end
 
@@ -877,7 +888,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println()
     println("entramos")
     println()  
-    const m = 300
+    m = 300
     #display(@benchmark polygonal(m))
     #println()
     #display(@benchmark polygonal2(m))

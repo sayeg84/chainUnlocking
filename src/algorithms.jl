@@ -1,12 +1,13 @@
 include("intersections.jl")
 
+using Distributions    # need for truncated gaussian distribution
 using IterativeSolvers # julia's `\` operator is not good for solving this systems
-using Statistics
+using Random           # generating random permutations for multi mutation steps
 
 
 function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))
     if length(P) == length(Q)
-        return overlapedRmsd(Q,P)
+        return overlapedRmsd(Q,P)^2
     else
         error("Chains must be of same length")
     end
@@ -22,7 +23,7 @@ function fourKnotSpan(Q::AbstractChain)
     return -dot(v,v)
 end
 
-function demaineEnergy1(Q::AbstractChain)
+function demaineEnergySimple(Q::AbstractChain)
     n = length(Q)
     sum = 0
     for i in 1:n
@@ -33,15 +34,23 @@ function demaineEnergy1(Q::AbstractChain)
     return sum
 end
 
-function demaineEnergy2(Q::AbstractChain)
+function demaineEnergy(Q::AbstractChain)
     n = length(Q)
     sum = 0
     for i in 1:n
+        #=
+        All of these proceedures with two four loops grouped under a 
+        single for loop using an `if o looping over vcat(1:(i-1),(i+2):(n+1))
+
+        Both of these options are discarded as suboptimal for performance: 
+        using the `if` makes a comparison over the index in each step of the loop,
+        and using the `vcat` allocates memory instead of using a lazy range.
+        =#
         for j in 1:(i-1)
             sum += 1/pow2(norm(Q[j]-Q[i]) + norm(Q[j]-Q[i+1]) - norm(Q[i]-Q[i+1]))
         end
         for j in (i+2):(n+1)
-            sum += pow2(norm(Q[j]-Q[i]) + norm(Q[j]-Q[i+1]) - norm(Q[i]-Q[i+1]))
+            sum += 1/pow2(norm(Q[j]-Q[i]) + norm(Q[j]-Q[i+1]) - norm(Q[i]-Q[i+1]))
         end
     end
     return sum
@@ -62,7 +71,7 @@ function tangentPointDiscreteKernel(Q::AbstractChain,i::Integer,j::Integer,
     return sum/4
 end
 
-function tangentEnergy2(Q::AbstractChain;alpha::Real=3,beta::Real=6)
+function tangentEnergySimple(Q::AbstractChain;alpha::Real=3,beta::Real=6)
     n = length(Q)
     sum = 0
     for i in 1:n
@@ -80,6 +89,7 @@ function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)
     sum = 0
     for i in 1:n
         li = distance(Q[i+1],Q[i])
+        # see `demaineEnergy` comment
         for j in 1:(i-2)
             lj = distance(Q[j+1],Q[j])
             sum += tangentPointDiscreteKernel(Q,i,j,alpha,beta)*li*lj
@@ -98,6 +108,14 @@ function tangentEnergyFrac(Q::AbstractChain)
     return tangentEnergy(Q,alpha=2,beta=4.5)
 end
 
+function uniformAngle(angmin::Real,angmax::Real)
+    return rand()*(angmax-angmin) + angmin
+end
+
+# bad practice as it has to create a new Distribution.TruncatedNormal object for each call
+function gaussianAngle(angmin::Real,angmax::Real)
+    rand(Distributions.TruncatedNormal(0,1,angmin,angmax))
+end
 
 # we can use a single integer `k` to encode changes in both dihedral and internal ang_vals
 # if the integer is of size 1 <= k <= n-3, then it representes a change in dihedral angle
@@ -105,7 +123,7 @@ function generateAngleIndex(n::Integer,internal::Bool)::Integer
     return internal ? rand(1:(2*n-3)) : rand(1:(n-2))
 end
 
-function mutateChain(P::AbstractChain,ang_idx::Integer,alpha::Real;debug::Bool=false)
+function checkSingleMutation(P::AbstractChain,ang_idx::Integer,alpha::Real;debug::Bool=false)
     n = length(P)
     intersection = false
     if 1 <= ang_idx <= n-2
@@ -121,6 +139,20 @@ function mutateChain(P::AbstractChain,ang_idx::Integer,alpha::Real;debug::Bool=f
         error("index $(ang_idx) is not supported")
     end
     return intersection,newP
+end
+
+function checkMultipleMutation(P::AbstractChain,mov_ang_idxs::Array{<:Integer,1},alphas::Array{<:Real,1};debug::Bool=false)
+    n = length(P)
+    intersection = false
+    m1 = length(mov_ang_idxs)
+    newP = P
+    i = 1
+    while i <= m1 && !intersection
+        loc_inter,newP = checkSingleMutation(newP,mov_ang_idxs[i],alphas[i],debug=debug)
+        intersection = intersection || loc_inter
+        i += 1
+    end
+    return intersection, newP
 end
 
 function localRandomSearchStep(Q,newQ,inter_flag,c,minf_val,minf_newval,
@@ -178,7 +210,7 @@ end
 
 # `temp_init` argument is useless and only put for compatibility reasons
 function localRandomSearch(Q::PolygonalChain,
-    minFunc::Function,
+    minFunc::F,
     tolerance::Real=1e-2,
     alphamax::Real=pi/2,
     alphamin::Real=-pi/2,
@@ -187,7 +219,7 @@ function localRandomSearch(Q::PolygonalChain,
     temp_f::Float64=1e-4,
     iter_per_temp::Integer=20,
     max_iter::Integer=1000,
-    debug::Bool=false)
+    debug::Bool=false) where {F}
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
@@ -197,24 +229,24 @@ function localRandomSearch(Q::PolygonalChain,
     ang_vals  = zeros(typeof(Q[1].x),max_iter)
     fun_vals =  zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
-    d = minFunc(Q)
+    fval = minFunc(Q)
     c = 1
-    while d > tolerance && c <= max_iter
+    while fval > tolerance && c <= max_iter
         alpha = rand()*(alphamax-alphamin) + alphamin
         (internal) && (alpha = alpha/2)
         ang_idx = generateAngleIndex(nq,internal)
-        inter_flag , newQ = mutateChain(Q,ang_idx,alpha)
+        inter_flag , newQ = checkSingleMutation(Q,ang_idx,alpha)
         if !inter_flag
             dnew = minFunc(newQ)
-            if dnew < d
+            if dnew < fval
                 Q = newQ
-                d = dnew
+                fval = dnew
                 ang_idxs[c] = ang_idx
                 ang_vals[c] = alpha
                 fun_vals[c] = dnew
             end
         else
-            fun_vals[c] = d
+            fun_vals[c] = fval
         end
         c += 1
     end
@@ -230,8 +262,8 @@ function exponentialTemperature(temp::Real,k::Integer;a::Float64=0.99)
     return a*temp
 end
 
-function simulatedAnnealing(Q::PolygonalChain,
-    minFunc::Function,
+function singleSimulatedAnnealing(Q::PolygonalChain,
+    minFunc::F,
     tolerance::Real=1e-2,
     alphamax::Real=pi/2,
     alphamin::Real=-pi/2,
@@ -241,24 +273,26 @@ function simulatedAnnealing(Q::PolygonalChain,
     iter_per_temp::Integer=20,
     tempUpdate=exponentialTemperature,
     max_iter::Integer=1000,
-    debug::Bool=false)
+    debug::Bool=false) where {F}
     # preprocessing
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
+    dist = Distributions.TruncatedNormal(0,1,alphamin,alphamax)
     ang_idxs = zeros(Int16,max_iter)
     ang_vals = zeros(typeof(Q[1].x),max_iter)
     fun_vals = zeros(typeof(Q[1].x),max_iter)
     nq = length(Q)
-    d = minFunc(Q)
-    temp = temp_init*abs(d)
-    temp_f = temp_f*abs(d) 
+    fval = minFunc(Q)
+    temp = temp_init*abs(fval)
+    temp_f = temp_f*abs(fval) 
     c = 1
     c2 = 1
-    while d > tolerance && c <= max_iter && temp > temp_f
+    while fval > tolerance && c <= max_iter && temp > temp_f
         for i in 1:iter_per_temp
-            alpha = rand()*(alphamax-alphamin) + alphamin
+            #alpha = uniformAngle(alphamin,alphamax)
+            alpha = rand(dist)
             (internal) && (alpha = alpha/2)
             ang_idx = generateAngleIndex(nq,internal)
             if debug
@@ -271,17 +305,17 @@ function simulatedAnnealing(Q::PolygonalChain,
                 println("# testing intersection")
                 println("\n")
             end
-            inter_flag,newQ = mutateChain(Q,ang_idx,alpha,debug=debug)
+            inter_flag,newQ = checkSingleMutation(Q,ang_idx,alpha,debug=debug)
             debug && println("inter  = $(inter_flag)")
             debug && println("newQ = $(newQ)")
             if !inter_flag
                 
                 dnew = minFunc(newQ)
                 r = log(rand())
-                p = (-dnew + d)/temp
+                p = (-dnew + fval)/temp
                 if debug
                     println("# no inter")
-                    println("d = $d")
+                    println("fval = $fval")
                     println("dnew = $(dnew)")
                     println("p = $p")
                     println("r = $r")
@@ -289,14 +323,14 @@ function simulatedAnnealing(Q::PolygonalChain,
                 if r < p
                     debug && println("# accepted")
                     Q = newQ
-                    d = dnew
+                    fval = dnew
                     ang_idxs[c] = ang_idx
                     ang_vals[c] = alpha
                     fun_vals[c] = dnew
 
                 end
             else
-                fun_vals[c] = d
+                fun_vals[c] = fval
             end
             c += 1
             debug && println("\n\n")
@@ -307,6 +341,187 @@ function simulatedAnnealing(Q::PolygonalChain,
     c = c > max_iter ? max_iter : c
     return Q,ang_vals[1:c],ang_idxs[1:c],fun_vals[1:c]
 end
+
+function multipleSimulatedAnnealing(Q::PolygonalChain,
+    minFunc::F,
+    tolerance::Real=1e-2,
+    alphamax::Real=pi/2,
+    alphamin::Real=-pi/2,
+    internal::Bool=false;
+    temp_init::Float64=1.0,
+    temp_f::Float64=1e-4,
+    iter_per_temp::Integer=20,
+    tempUpdate=exponentialTemperature,
+    max_iter::Integer=1000,
+    mut_k::Integer=3,
+    debug::Bool=false) where {F}
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
+    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    ang_idxs = zeros(Int16,mut_k*max_iter)
+    ang_vals = zeros(typeof(Q[1].x),mut_k*max_iter)
+    fun_vals = zeros(typeof(Q[1].x),max_iter)
+    nq = length(Q)
+    fval = minFunc(Q)
+    temp = temp_init*abs(fval)
+    temp_f = temp_f*abs(fval) 
+    c = 1
+    c2 = 1
+    while fval > tolerance && c <= max_iter && temp > temp_f
+        for i in 1:iter_per_temp
+            alphas = [rand(dist) for j in 1:mut_k]
+            (internal) && (alphas = 0.5*alphas)
+            mov_ang_idxs = internal ? Random.randperm(2*nq-3)[1:mut_k] : Random.randperm(nq-2)[1:mut_k]
+            if debug
+                println("c = $c")
+                println("c2 = $(c2)")
+                println("i = $i")
+                println("Q = $Q")
+                println("mov_ang_idxs = $(mov_ang_idxs)")
+                println("ang_val  = $(alphas)")
+                println("# testing intersection")
+                println("\n")
+            end
+            inter_flag,newQ = checkMultipleMutation(Q,mov_ang_idxs,alphas,debug=debug)
+            debug && println("inter  = $(inter_flag)")
+            debug && println("newQ = $(newQ)")
+            if !inter_flag
+                dnew = minFunc(newQ)
+                r = log(rand())
+                p = (-dnew + fval)/temp
+                if debug
+                    println("# no inter")
+                    println("fval = $fval")
+                    println("dnew = $(dnew)")
+                    println("p = $p")
+                    println("r = $r")
+                end
+                if r < p
+                    debug && println("# accepted")
+                    Q = newQ
+                    fval = dnew
+                    ang_idxs[3*c-2:3*c] = ang_idxs
+                    ang_vals[3*c-2:3*c] = alphas
+                    fun_vals[c] = dnew
+
+                end
+            else
+                fun_vals[c] = fval
+            end
+            c += 1
+            debug && println("\n\n")
+        end
+        c2 += 1
+        temp = tempUpdate(temp,c2)
+    end
+    c = c > max_iter ? max_iter : c
+    return Q,ang_vals[1:3*c],ang_idxs[1:3*c],fun_vals[1:c]
+end
+
+# implementation taken from Wheeler et al "Algorithms for Optimization"
+# current implementation avoids to make 
+
+abstract type SelectionMethod end
+
+struct TruncationSelection <: SelectionMethod
+    k::Int64 
+end
+
+function select(t::TruncationSelection,fvals::Array{<:Real,1})
+    p = sortperm(fvals)
+    return [p[rand(1:t.k)] for _ in fvals]
+end
+
+struct TournamentSelection <: SelectionMethod
+    k::Int64 
+end
+
+function select(t::TournamentSelection,fvals::Array{<:Real,1})
+    n = length(f_vals)
+    vals = zeros(Int64,n) 
+    for i in 1:n
+        p = randperm(n)
+        vals[i] = argmin(fvals[p[1:t.k]])
+    end
+    return vals
+end
+
+struct RouletteWheelSelection <: SelectionMethod end
+
+function select(t::RouletteWheelSelection,fvals::Array{<:Real,1})
+    fvals = [Float64(maximum(fvals) - val) for val in fvals]
+    cat = Distributions.Categorical(LinearAlgebra.normalize(fvals,1))
+    return rand(cat,length(fvals))
+end
+
+function genetic(Q::PolygonalChain,
+    minFunc::F,
+    tolerance::Real=1e-2,
+    alphamax::Real=pi/2,
+    alphamin::Real=-pi/2,
+    internal::Bool=false;
+    selection::SelectionMethod=RouletteWheelSelection(),
+    max_iter::Integer=1000,
+    population::Integer=8,
+    mut_k::Integer=3,
+    debug::Bool=false) where {F}
+    # preprocessing
+    if minFunc == distToFlat
+        auxQ = flatten(Q)
+        minFunc = Q -> distToFlat(Q,auxQ)
+    end
+    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    fun_vals = zeros(typeof(Q[1].x),max_iter,population)
+    nq = length(Q)
+    Qs = [perturbe(Q) for _ in 1:population]
+    fvals  = [minFunc(R) for R in Qs]
+    c = 1
+    while maximum(fvals) > tolerance && c <= max_iter
+        # mutation
+        for j in 1:population
+            mut_length = rand(1:mut_k)
+            alphas = [rand(dist) for _ in 1:mut_length]
+            (internal) && (alphas = 0.5*alphas)
+            mov_ang_idxs = internal ? Random.randperm(2*nq-3)[1:mut_length] : Random.randperm(nq-2)[1:mut_length]
+            if debug
+                println("c = $c")
+                println("j = $j")
+                println("Q = $(Qs[j])")
+                println("ang_idxs = $(mov_ang_idxs)")
+                println("ang_vals  = $(alphas)")
+                println("# testing intersection")
+                println("\n")
+            end
+            inter_flag,newQ = checkMultipleMutation(Qs[j],mov_ang_idxs,alphas,debug=false)
+            if debug
+                println("inter  = $(inter_flag)")
+                println("newQ = $(newQ)")
+            end
+            if !inter_flag
+                Qs[j] = newQ
+                fvals[j] = minFunc(newQ)
+            end
+        end
+        fun_vals[c,:] = fvals
+        # parent selection
+        parents = select(selection,fvals)
+        if debug
+            for Q in Qs
+                println(Q)
+            end
+        end
+        Qs = Qs[parents]
+        c += 1
+        debug && println("\n\n")
+    end
+    c = c > max_iter ? max_iter : c
+    return Qs,fun_vals[1:c,:]
+end
+
+
 
 #=
 
@@ -397,6 +612,33 @@ function Bmatrix(P::PolygonalChain,sigma::Real=0.75;debug::Bool=false)
     T = typeof(P[1].x)
     B = zeros(T,n+1,n+1)
     for i in 1:n
+        # see `demaineEnergy` comment
+        for j in 1:(i-2)
+            li = distance(P[i+1],P[i])
+            lj = distance(P[j+1],P[j])
+            Ti = (P[i+1]-P[i])/li
+            Tj = (P[j+1]-P[j])/lj
+            tij = dot(Ti,Tj)
+            wij = weight(P,i,j,li,lj,sigma)
+            if debug
+                println("i = $i")
+                println("j = $j")
+                println("li = $li")
+                println("lj = $lj")
+                println("Ti = $Ti")
+                println("Tj = $Tj")
+                println("tij = $tij")
+                println("wij = $wij")
+            end
+            denom = li*lj
+            for a in 0:1, b in 0:1
+                sign = (-1)^(a+b)
+                B[i+a,i+b] += sign*wij/li^2
+                B[j+a,j+b] += sign*wij/lj^2
+                B[i+a,j+b] -= sign*wij*tij/denom
+                B[j+a,i+b] -= sign*wij*tij/denom
+            end
+        end
         for j in i+2:n
             li = distance(P[i+1],P[i])
             lj = distance(P[j+1],P[j])
@@ -453,7 +695,16 @@ function B0matrix(P::PolygonalChain,sigma::Real=0.75)
     T = typeof(P[1].x)
     B0 = zeros(T,n+1,n+1)
     for i in 1:n
-        for j in i+2:n
+        for j in 1:(i-2)
+            w0ij = weight0(P,i,j,sigma)/4
+            for a in 0:1, b in 0:1
+                B0[i+a,i+b] += w0ij
+                B0[j+a,j+b] += w0ij
+                B0[i+a,j+b] -= w0ij
+                B0[j+a,i+b] -= w0ij
+            end
+        end
+        for j in (i+2):n
             w0ij = weight0(P,i,j,sigma)/4
             for a in 0:1, b in 0:1
                 B0[i+a,i+b] += w0ij
@@ -560,32 +811,17 @@ function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     end
 end
 
-function distance(x)
-    ax = x[1]
-    ay = x[2]
-    az = x[3]
-    bx = x[4]
-    by = x[5]
-    bz = x[6]
-    return sqrt((ax-bx)*(ax-bx) + (ay-by)*(ay-by) + (az-bz)*(az-bz))
+function distance(x::Array{<:Real,1})
+    return sqrt(pow2(x[1]-x[4]) + pow2(x[2]-x[5]) + pow2(x[3]-x[6]))
 end
 
-function bangle(x)
-    ax = x[1]
-    ay = x[2]
-    az = x[3]
-    bx = x[4]
-    by = x[5]
-    bz = x[6]
-    cx = x[7]
-    cy = x[8]
-    cz = x[9]
-    u1x = bx-ax
-    u1y = by-ay
-    u1z = bz-az
-    u2x = cx-bx
-    u2y = cy-by
-    u2z = cz-bz
+function bangle(x::Array{<:Real,1})
+    u1x = x[4]-x[1]
+    u1y = x[5]-x[2]
+    u1z = x[6]-x[3]
+    u2x = x[7]-x[4]
+    u2y = x[8]-x[5]
+    u2z = x[9]-x[6]
     d = u1x*u2x +  u1y*u2y + u1z*u2z
     n1 = distance([u1x,u1y,u1z,0,0,0]) 
     n2 = distance([u2x,u2y,u2z,0,0,0]) 

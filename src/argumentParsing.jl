@@ -76,7 +76,7 @@ function parse_commandline()
             help= "Flag to indicate if internal angles are also allowed to be changed"
             action = :store_true
         "--debug"
-            help= "Flag to indicate if internal angles are also allowed to be changed"
+            help= "Flag passed to methods to print debug info on screen"
             action = :store_true
     end
     return parse_args(s)

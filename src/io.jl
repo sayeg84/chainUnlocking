@@ -1,6 +1,7 @@
 include("algorithms.jl")
 
-using DelimitedFiles, Statistics
+using DelimitedFiles
+using Statistics
 
 function rotate!(P::AbstractChain,ang_idx::Integer,alpha::Real)
     n = length(P)
@@ -21,6 +22,26 @@ function saveChain(name::AbstractString,P::AbstractChain)
     end
 end
 
+function saveChains(name::AbstractString,Ps::Array{<:AbstractChain,1})
+    ns = length(Ps[1])+1
+    nzeros = Int(ceil(log10(ns+1)))
+    pnames = [lpad(i,nzeros,'0') for i in 1:ns]
+    pnames = [string("p",i) for i in pnames]
+    pnames = [string(i,c) for i in pnames for c in ("x","y","z")]
+    firstrow = join(pnames,',')
+    firstrow = string(firstrow,"\n")
+    open(name,"w+") do io
+        write(io,firstrow)
+        for P in Ps
+            arr = to2DArray(P)
+            coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
+            coordinates = join(coordinates,",")
+            coordinates = string(coordinates,"\n")
+            write(io,coordinates)
+        end
+    end
+end
+
 function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<:Real,1},minFunc)
     newQ = copy(Q)
     funcvals = zeros(typeof(Q[1].x),length(ang_vals))
@@ -38,7 +59,6 @@ function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<
     #println()
     return funcvals
 end
-
 
 function saveTrajectory(name::AbstractString,Q::AbstractChain,ang_vals::Array{<:Real,1},ang_idxs::Array{<:Real,1})
     ns = length(Q)+1
@@ -101,7 +121,7 @@ function saveSimulation(name::AbstractString,Q::AbstractChain,lastQ::AbstractCha
     end
 end
 
-function saveLtable(name::AbstractString,ls::Array{<:Real,1})
+function saveLtable(name::AbstractString,ls)
     open(joinpath(name,"ls.csv"),"w+") do io
         DelimitedFiles.writedlm(io,ls,',')
     end
