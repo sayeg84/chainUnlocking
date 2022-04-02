@@ -811,9 +811,7 @@ function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     end
 end
 
-function distance(x::Array{<:Real,1})
-    return sqrt(pow2(x[1]-x[4]) + pow2(x[2]-x[5]) + pow2(x[3]-x[6]))
-end
+#=
 
 function bangle(x::Array{<:Real,1})
     u1x = x[4]-x[1]
@@ -827,18 +825,30 @@ function bangle(x::Array{<:Real,1})
     n2 = distance([u2x,u2y,u2z,0,0,0]) 
     return pi-acos(d/(n1*n2))
 end
+=#
+
+function distance(x::Array{<:Real,1})
+    return sqrt(pow2(x[1]-x[4]) + pow2(x[2]-x[5]) + pow2(x[3]-x[6]))
+end
+
+# wrappers to existing type seem to work better than implementations from zero
+
+function bangle(x::Array{<:Real,1})
+    return bangle(Point(x[1:3]),Point(x[4:6]),Point(x[7:9]))
+end
+
+function dihedral(x::Array{<:Real,1})
+    return dihedral(Point(x[1:3]),Point(x[4:6]),Point(x[7:9]),Point(x[10:12]))
+end
 
 function bangleDev(a,b,c)
     h = 1e-3
     ah = Point(Hyperdual(a.x,h),Hyperdual(a.y,0),Hyperdual(a.z,0))
-    bh = Point(Hyperdual(b.x,0),Hyperdual(b.y,0),Hyperdual(b.z,0))
-    ch = Point(Hyperdual(c.x,0),Hyperdual(c.y,0),Hyperdual(c.z,0))
     return bangle(ah,b,c).a1/h
 end
 
 
 function diff(f,p::Point,h::Real=1e-3)
-    res = zeros(typeof(p.x),3)
     xp = Point(Hyperdual(p.x,h),Hyperdual(p.y,0),Hyperdual(p.z,0))
     yp = Point(Hyperdual(p.x,0),Hyperdual(p.y,h),Hyperdual(p.z,0))
     zp = Point(Hyperdual(p.x,0),Hyperdual(p.y,0),Hyperdual(p.z,h))
@@ -921,7 +931,6 @@ function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     end
 end
 
-
 function constraints(arr::Array{<:Real,1},ls,bas,das,internal::Bool)
     n = length(ls)
     T = typeof(arr[1])
@@ -943,6 +952,118 @@ function constraints(arr::Array{<:Real,1},ls,bas,das,internal::Bool)
     end
 end
 
+function hardConstraints(P::PolygonalChain,ls,bas,das)
+    n = length(P)
+    T = typeof(P[1].x)
+    res = zeros(T,3*n-3)
+    for i in 1:n
+        res[i] = distance(P[i+1],P[i])-ls[i]
+    end
+    for i in 1:n-1
+        res[n+i] = bangle(P[i],P[i+1],P[i+2])-bas[i]
+    end
+    d = (2*n-1)
+    for i in 1:n-2
+        res[d+i] = dihedral(P[i],P[i+1],P[i+2],P[i+3])-das[i]
+    end
+    return res
+end
+
+function hardConstraints(arr::Array{<:Real,1},ls,bas,das)
+    n = length(ls)
+    T = typeof(arr[1])
+    res = zeros(T,3*n-3)
+    for i in 1:n
+        res[i] = distance(arr[3*i-2:3*i+3])-ls[i]
+    end
+    for i in 1:n-1
+        res[n+i] = bangle(arr[3*i-2:3*i+6])-bas[i]
+    end
+    d = (2*n-1)
+    for i in 1:n-2
+        res[d+i] = dihedral(arr[3*i-2:3*i+9])-das[i]
+    end
+    return res
+end
+
+function helixifiedConstraints(P::PolygonalChain,ndens::Array{<:Integer,1},ls,bas,das;debug::Bool=false)
+    nhelices = length(ndens)
+    T = typeof(P[1].x)
+    resn = 0
+    for i in 1:nhelices 
+        n = ndens[i]+1 # length of helix
+        resn += 3*n-3
+    end
+    debug && println("resn=$resn")
+    res = zeros(T,resn)
+    c  = 1 # conunting vertex positions
+    cl = 1 # counting lengths positions
+    cb = 1 # counting bangles positions
+    cd = 1 # counting dangles positions
+    r = 0
+    for i in 1:nhelices
+        n  = ndens[i]+1 # length of helix
+        d  = c+n
+        dl = cl + n-1 
+        db = cb + n-2
+        dd = cd + n-3
+        if debug
+            println("c = $c, d = $d")
+            println("cl = $cl,  dl = $dl")
+            println("cb = $cb,  dd = $db")
+            println("cd = $cl,  dd = $dd")
+        end
+        res[r+1:r+3*n-3] = hardConstraints(PolygonalChain(P[c:d]),ls[cl:dl],bas[cb:db],das[cd:dd])
+        c  = d
+        cl = dl+1
+        cb = db+2
+        cd = dd+3
+        r += 3*n-3
+    end
+    debug && println("r=$r")
+    return res
+end
+
+function helixifiedConstraints(arr::Array{<:Real,1},ndens::Array{<:Integer,1},ls,bas,das;debug::Bool=false)
+    nhelices = length(ndens)
+    T = typeof(arr[1])
+    resn = 0
+    for i in 1:nhelices 
+        n = ndens[i]+1 # length of helix
+        resn += 3*n-3
+    end
+    debug && println("resn=$resn")
+    res = zeros(T,resn)
+    c  = 1 # conunting vertex positions
+    cl = 1 # counting lengths positions
+    cb = 1 # counting bangles positions
+    cd = 1 # counting dangles positions
+    r = 0
+    for i in 1:nhelices
+        n  = ndens[i]+1 # length of helix
+        d  = c+n
+        dl = cl + n-1 
+        db = cb + n-2
+        dd = cd + n-3
+        if debug
+            println("c = $c, d = $d")
+            println("cl = $cl,  dl = $dl")
+            println("cb = $cb,  dd = $db")
+            println("cd = $cl,  dd = $dd")
+        end
+        mat = hardConstraints(arr[3*c-2:3*d],ls[cl:dl],bas[cb:db],das[cd:dd])
+        res[r+1:r+3*n-3] = mat
+        c  = d
+        cl = dl+1
+        cb = db+2
+        cd = dd+3
+        r += 3*n-3
+    end
+    debug && println("r=$r")
+    return res
+end
+
+## most performant version
 
 function constraintsJacobian(P::PolygonalChain,internal::Bool)
     n = length(P)
@@ -972,82 +1093,6 @@ function constraintsJacobian(P::PolygonalChain,internal::Bool)
             C[i,3*i+3] = (P[i+1]-P[i]).z/l
         end
         # internal angle restrictions
-        arr = to2DArray(P)
-        for i in 1:n-1
-            lim1 = 3*i-2
-            lim2 = 3*i+6
-            x = transpose(arr)[lim1:lim2]
-            dev = jacobian(bangle,x,1e-3;df=hyperdualPartialDerivative)
-            C[n+i,lim1:lim2] = dev
-        end
-    end
-    return C
-end
-
-function constraintsJacobian3(P::PolygonalChain,internal::Bool)
-    n = length(P)
-    T = typeof(P[1].x)
-    if internal
-        C = zeros(T,n,3*n+3)
-        # length restrictions
-        for i in 1:n
-            grad1 = diff(p->distance(P[i+1],p),P[i])
-            grad2 = diff(p->distance(p,P[i]),P[i+1])
-            C[i,3*i-2:3*i]   = grad1
-            C[i,3*i+1:3*i+3] = grad2
-        end
-    else
-        C = zeros(T,2*n-1,3*n+3)
-        # length restrictions
-        for i in 1:n
-            grad1 = diff(p->distance(P[i+1],p),P[i])
-            grad2 = diff(p->distance(p,P[i]),P[i+1])
-            C[i,3*i-2:3*i]   = grad1
-            C[i,3*i+1:3*i+3] = grad2
-        end
-        # internal angle restrictions
-        arr = to2DArray(P)
-        for i in 1:n-1
-            grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
-            grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
-            grad3 = diff(p->bangle(P[i],P[i+1],p),P[i+2])
-            C[n+i,3*i-2:3*i]   = grad1
-            C[n+i,3*i+1:3*i+3] = grad2
-            C[n+i,3*i+4:3*i+6] = grad3
-        end
-    end
-    return C
-end
-
-function constraintsJacobian4(P::PolygonalChain,internal::Bool)
-    n = length(P)
-    T = typeof(P[1].x)
-    if internal
-        C = zeros(T,n,3*n+3)
-        # length restrictions
-        for i in 1:n
-            l = distance(P[i+1],P[i])
-            C[i,3*i-2] = (P[i]-P[i+1]).x/l
-            C[i,3*i-1] = (P[i]-P[i+1]).y/l
-            C[i,3*i]   = (P[i]-P[i+1]).z/l
-            C[i,3*i+1] = (P[i+1]-P[i]).x/l
-            C[i,3*i+2] = (P[i+1]-P[i]).y/l
-            C[i,3*i+3] = (P[i+1]-P[i]).z/l
-        end
-    else
-        C = zeros(T,2*n-1,3*n+3)
-        # length restrictions
-        for i in 1:n
-            l = distance(P[i+1],P[i])
-            C[i,3*i-2] = (P[i]-P[i+1]).x/l
-            C[i,3*i-1] = (P[i]-P[i+1]).y/l
-            C[i,3*i]   = (P[i]-P[i+1]).z/l
-            C[i,3*i+1] = (P[i+1]-P[i]).x/l
-            C[i,3*i+2] = (P[i+1]-P[i]).y/l
-            C[i,3*i+3] = (P[i+1]-P[i]).z/l
-        end
-        # internal angle restrictions
-        arr = to2DArray(P)
         for i in 1:n-1
             grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
             grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
@@ -1061,36 +1106,76 @@ function constraintsJacobian4(P::PolygonalChain,internal::Bool)
 end
 
 
-function constraintsJacobian2(P::PolygonalChain,internal::Bool)
+
+function hardConstraintsJacobian(P::PolygonalChain)
     n = length(P)
     T = typeof(P[1].x)
-    if internal
-        C = zeros(T,n,3*n+3)
-        # length restrictions
-        for i in 1:n
-            #println(i)
-            grad = diff(Q->distance(Q[i+1],Q[i]),P)
-            #println(grad)
-            C[i,:] = grad
-        end
-    else
-        C = zeros(T,2*n-1,3*n+3)
-        # length restrictions
-        for i in 1:n
-            grad = diff(Q->distance(Q[i+1],Q[i]),P)
-            #println(grad)
-            C[i,:] = grad
-        end
-        # internal angle restrictions
-        arr = to2DArray(P)
-        for i in 1:n-1
-            grad = diff(Q->bangle(Q[i],Q[i+1],Q[i+2]),P)
-            C[n+i,:] = grad
-        end
+    C = zeros(T,3*n-3,3*n+3)
+    # length restrictions
+    for i in 1:n
+        l = distance(P[i+1],P[i])
+        C[i,3*i-2] = (P[i]-P[i+1]).x/l
+        C[i,3*i-1] = (P[i]-P[i+1]).y/l
+        C[i,3*i]   = (P[i]-P[i+1]).z/l
+        C[i,3*i+1] = (P[i+1]-P[i]).x/l
+        C[i,3*i+2] = (P[i+1]-P[i]).y/l
+        C[i,3*i+3] = (P[i+1]-P[i]).z/l
+    end
+    # internal angle restrictions
+    for i in 1:n-1
+        grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
+        grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
+        grad3 = diff(p->bangle(P[i],P[i+1],p),P[i+2])
+        C[n+i,3*i-2:3*i]   = grad1
+        C[n+i,3*i+1:3*i+3] = grad2
+        C[n+i,3*i+4:3*i+6] = grad3
+    end
+    # dihedral angle restrictions
+    d = (2*n-1)
+    for i in 1:n-2
+        grad1 = diff(p->dihedral(p,P[i+1],P[i+2],P[i+3]),P[i])
+        grad2 = diff(p->dihedral(P[i],p,P[i+2],P[i+3]),P[i+1])
+        grad3 = diff(p->dihedral(P[i],P[i+1],p,P[i+3]),P[i+2])
+        grad4 = diff(p->dihedral(P[i],P[i+1],P[i+2],p),P[i+3])
+        C[d+i,3*i-2:3*i]   = grad1
+        C[d+i,3*i+1:3*i+3] = grad2
+        C[d+i,3*i+4:3*i+6] = grad3
+        C[d+i,3*i+7:3*i+9] = grad4
     end
     return C
 end
 
+function helixifiedConstraintsJacobian(P::PolygonalChain,ndens::Array{<:Integer,1};debug::Bool=false)
+    ntot = length(P)
+    nhelices = length(ndens)
+    T = typeof(P[1].x)
+    resn = 0
+    for i in 1:nhelices 
+        n = ndens[i]+1 # length of helix
+        resn += 3*n-3
+    end
+    debug && println("resn=$resn")
+    res = zeros(T,resn,3*ntot+3)
+    c  = 1 # conunting vertex positions
+    r = 0
+    for i in 1:nhelices
+        n  = ndens[i]+1 # length of helix
+        d  = c+n
+        if debug
+            println("c = $c, d = $d")
+            println("res[r+1:r+3*n-3,3*c-2:3*d]=")
+            println(res[r+1:r+3*n-3,3*c-2:3*d])
+            println("hardConstraintsJacobian")
+            println(hardConstraintsJacobian(PolygonalChain(P[c:d])))
+        end
+        mat = hardConstraintsJacobian(PolygonalChain(P[c:d]))
+        res[r+1:r+3*n-3,3*c-2:3*d] = mat
+        c  = d
+        r += 3*n-3
+    end
+    debug && println("r=$r")
+    return res
+end
 
 function movement(P::PolygonalChain,internal::Bool,
     ls::Array{<:Real,1},bas::Array{<:Real,1},das::Array{<:Real,1},
@@ -1108,7 +1193,7 @@ function movement(P::PolygonalChain,internal::Bool,
     #ener_grad = reshape(ener_grad,length(ener_grad))
     #println(ener_grad)
     Al = Aline(P,sigma)
-    C = constraintsJacobian4(P,internal)
+    C = constraintsJacobian(P,internal)
     mat = vcat(
         hcat(Al,transpose(C)),
         hcat(C,zeros(T,k,k))
@@ -1207,6 +1292,9 @@ function movement(P::PolygonalChain,internal::Bool,
     return new_chain
 end
 
+
+
+
 function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;tau::Real=1e-2,debug::Bool=false,renom::Bool=false)
     Q = copy(P)
     ls,bas,das = internalCoordinates(P)
@@ -1224,45 +1312,140 @@ function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0
     return res
 end
 
-
-function assertEqualJac(n::Integer)
-    eq_flag = false
-    for i in 1:n
-        C1 = constraintsJacobian(P,false)
-        C2 = constraintsJacobian2(P,false)
-        eq_flag = eq_flag || isapprox(C1-C2,1e-15)
-        if eq_flag
-            println()
-            display(C1)
-            println()
-            display(C2)
-            println()
-            display(C1-C2)
-            println()
-        end
+# movement for helixifiedChains
+function movement(P::PolygonalChain,ndens::Array{<:Integer,1},
+    ls::Array{<:Real,1},bas::Array{<:Real,1},das::Array{<:Real,1},
+    alpha::Real=2.0,beta::Real=4.5;
+    tau::Real=1e-2,debug::Bool=false)
+    sigma = ((beta-1)/alpha)-1
+    n = length(P)
+    T = typeof(P[1].x)
+    # counting restrictions
+    k = 0
+    for nden in ndens 
+        nloc = nden+1 # length of helix
+        k += 3*nloc-3
     end
+    ener = Q -> tangentEnergy(Q,alpha=alpha,beta=beta)
+    ener_grad = diff(ener,P)
+    Al = Aline(P,sigma)
+    C = helixifiedConstraintsJacobian(P,ndens)
+    mat = vcat(
+        hcat(Al,transpose(C)),
+        hcat(C,zeros(T,k,k))
+    )
+    ener_grad_ext = vcat(ener_grad,zeros(T,k))
+    # it is very important to give the solver enough iterations to converge
+    cons_proy_dir = IterativeSolvers.minres(mat,ener_grad_ext,maxiter=length(mat),reltol=1e-10)
+    if debug
+        open("../extra/Al.csv","w+") do io
+            writedlm(io,Al,',')
+        end
+        open("../extra/mat.csv","w+") do io
+            writedlm(io,mat,',')
+        end
+        open("../extra/ener.csv","w+") do io
+            writedlm(io,ener_grad,',')
+        end
+        println("\n Al \n\n")
+        display(Al)
+        println()
+        println("\n rank(Al) \n\n")
+        display(rank(Al))
+        println()
+        println("\n ener_grad \n\n")
+        display(ener_grad)
+        println()
+        #=
+        sol = Al \ ener_grad
+        println("\n sol \n\n")
+        display(sol)
+        println()
+        println("\n Al*sol - ener_grad \n\n")
+        display(Al*sol - ener_grad)
+        =#
+        println()
+        println("\n mat \n\n")
+        display(mat)
+        println()
+        println("\n ener_grad_ext \n\n")
+        display(ener_grad_ext)
+        println()
+        println("\n cons_proy_dir \n\n")
+        display(cons_proy_dir)
+        println()
+        println("\n mat*cons_proy_dir - ener_grad_ext \n\n")
+        display(mat*cons_proy_dir - ener_grad_ext)
+        println()
+        println()
+        println("\n cons_proy_dir \n\n")
+        display(cons_proy_dir)
+        println()
+        
+    end
+    new_chain = toArray(P)-tau*cons_proy_dir[1:(3*n+3)]
+    if debug
+        println()
+        println("\n new_chain \n\n")
+        display(new_chain)
+        println()
+    end
+    cons   = helixifiedConstraints(new_chain,ndens,ls,bas,das)
+    newSol = vcat(zeros(T,3*n+3),-1*cons)
+    chain_proy_dir = IterativeSolvers.minres(mat,newSol,maxiter=length(mat),reltol=1e-10)
+    new_chain = new_chain + chain_proy_dir[1:(3*n+3)]
+    c = 0
+    cons = helixifiedConstraints(new_chain,ndens,ls,bas,das)
+    con_norm = LinearAlgebra.norm(cons,2)
+    while con_norm > 1e-4 && c < 10
+        if debug
+            println("\n")
+            println(con_norm)
+            println("\n")
+            display(cons)
+            println("\n")
+        end
+        c += 1
+        newSol[3*n+4:end] = -1*cons
+        IterativeSolvers.minres!(chain_proy_dir,mat,newSol,maxiter=length(mat),reltol=1e-10)
+        new_chain = new_chain + chain_proy_dir[1:(3*n+3)]
+        cons = helixifiedConstraints(new_chain,ndens,ls,bas,das)
+        con_norm = LinearAlgebra.norm(cons,2)
+    end
+    if debug
+        println("\n c \n\n")
+        println(c)
+        println()
+        println("\n cons \n\n")
+        display(cons)
+        println()
+        println("\n chain_proy_dir \n\n")
+        display(chain_proy_dir)
+        println()
+        println("\n new_chain_final \n\n")
+        display(new_chain)
+        println()
+    end
+    return new_chain
 end
 
-function benchConsJac1()
-    P = PolygonalChain(20)
-    constraintsJacobian(P,false)
+function sobolevGradientDescent(P::AbstractChain,ndens::Array{<:Integer,1},iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;tau::Real=1e-2,debug::Bool=false,renom::Bool=false)
+    Q = copy(P)
+    ls,bas,das = internalCoordinates(P)
+    n = length(P)
+    T = typeof(P[1].x)
+    res = zeros(T,iter+1,3*n+3)
+    res[1,:] = toArray(Q)
+    for i in 1:iter
+        println("iter = $i")
+        if i % 10 == 0
+            println("iter = $i")
+        end
+        newQ = PolygonalChain(res[i,:])
+        res[i+1,:] = movement(newQ,ndens,ls,bas,das,alpha,beta,tau=tau,debug=debug)
+    end
+    return res
 end
-
-function benchConsJac2()
-    P = PolygonalChain(20)
-    constraintsJacobian2(P,false)
-end
-
-function benchConsJac3()
-    P = PolygonalChain(20)
-    constraintsJacobian3(P,false)
-end
-
-function benchConsJac4()
-    P = PolygonalChain(20)
-    constraintsJacobian4(P,false)
-end
-
 
 if abspath(PROGRAM_FILE) == @__FILE__
     test = false
@@ -1277,41 +1460,27 @@ if abspath(PROGRAM_FILE) == @__FILE__
         aux2(P::PolygonalChain) = bangle(P[1],P[2],P[3])
         println(diff(aux2,PolygonalChain([a,b,c])))
     end
-    bench = false
-    if bench
-        using BenchmarkTools
-        println()
-        println()
-        display(@benchmark benchConsJac1())
-        println()
-        println()
-        display(@benchmark benchConsJac2())
-        println()
-        println()
-        display(@benchmark benchConsJac3())
-        println()
-        println()
-        display(@benchmark benchConsJac4())
-        println()
-        println()
-    end
     #P = PolygonalChain(6)
     #P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])
-    P = parametricCurveChain(treefoil,30,0,deg2rad(315))
-    
-    ls,bas,das = internalCoordinates(P)
+    #P = parametricCurveChain(treefoil,30,0,deg2rad(315))
+    #ls,bas,das = internalCoordinates(P)
     #=
     mov = movement(P,true,ls,bas,das,debug=true)
     
     Q = PolygonalChain(mov)
     ls,bas,das = internalCoordinates(Q)
-    
+    =#
     P = knittingNeedle(2.23)
     P = PolygonalChain([Point(Float64,p) for p in P.vertices])
     println(P)
-    =#
-    res = sobolevGradientDescent(P,1000,renom=false)
-    saveTrajectory()
+    ndens = [5,2,2,2,5]
+    Q = helixify(P,ndens;r=5e-3)
+    ls,bas,das = internalCoordinates(Q)
+    mov = movement(Q,ndens,ls,bas,das,debug=false)
+    println(mov)
+    println(norm(mov-toArray(Q)))
+    #res = sobolevGradientDescent(P,1000,renom=false)
+    #saveTrajectory()
     #=
     println("\n")
     display(res)

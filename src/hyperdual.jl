@@ -173,6 +173,22 @@ function Base.atan(x::Hyperdual)
     return generalFunctionEval(x,atan,df,ddf)
 end
 
+function Base.atan(y::Hyperdual,x::Hyperdual)
+    if x > 0
+        return atan(y/x)
+    elseif x < 0 && y >= 0
+        return atan(y/x) + pi
+    elseif x < 0 && y < 0
+        return atan(y/x) - pi
+    elseif x.a0==0 && y > 0
+        return pi/2
+    elseif x.a0==0 && y < 0
+        return -pi/2
+    else
+        error("atan for x = $x, y = $y is not defined")
+    end
+end
+
 function Base.acot(x::Hyperdual)
     df(x) = -1/(1+x^2)
     ddf(x) = 2*x/(1+x^2)^2
@@ -183,6 +199,12 @@ function Base.asec(x::Hyperdual)
     df(x) = 1/(sqrt(1-1/x^2)*x^2)
     ddf(x) = -1/((1-1/x^2)^(3/2)*x^5) - 2/((1-1/x^2)*x^3)
     return generalFunctionEval(x,asec,df,ddf)
+end
+
+function asec2(x::Hyperdual)
+    df(x) = 1/(sqrt(1-1/x^2)*x^2)
+    ddf(x) = -1/((1-1/x^2)^(3/2)*x^5) - 2/((1-1/x^2)*x^3)
+    return generalFunctionEval2(x,asec,df,ddf)
 end
 
 function Base.acsc(x::Hyperdual)
@@ -279,16 +301,33 @@ function Base.:>(x::Hyperdual,y::Hyperdual)
     return x.a0 > y.a0
 end
 
+function Base.:>(x::Hyperdual,y::Real)
+    return x.a0 > y
+end
+
+function Base.:>(x::Real,y::Hyperdual)
+    return x > y.a0
+end
+
 function Base.:>=(x::Hyperdual,y::Hyperdual)
     return x.a0 >= y.a0
 end
 
-function Base.:<(x::Hyperdual,y::Hyperdual)
-    return x.a0 < y.a0
+function Base.:>=(x::Hyperdual,y::Real)
+    return x.a0 >= y
 end
 
-function Base.:<=(x::Hyperdual,y::Hyperdual)
-    return x.a0 <= y.a0
+function Base.:>=(x::Real,y::Hyperdual)
+    return x >= y.a0
+end
+
+
+function Base.:<(x::RealOrDual,y::RealOrDual)
+    return y > x
+end
+
+function Base.:<=(x::RealOrDual,y::RealOrDual)
+    return y >= x
 end
 
 #=

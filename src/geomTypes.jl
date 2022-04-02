@@ -115,6 +115,20 @@ function iangle(u::Point,v::Point)
     return atan(sint,cost)    
 end
 
+"""
+orthogonalBasis(normal::Point)
+
+Returns a tuple of Point repersenting a basis for the plane passing through the origin
+with normal `normal`.
+"""
+function orthogonalBasis(normal::Point)
+    vec1 = 2*Point()-Point(1.0,1.0,1.0)
+    vec1 = vec1 - dot(normal,vec1)*normal
+    vec1 = unitVector(vec1)
+    vec2 = cross(normal,vec1)
+    return vec1,vec2
+end
+
 function toArray(p::Point)::Array{<:RealOrDual,1}
     return [p.x,p.y,p.z]
 end
@@ -394,6 +408,10 @@ function Base.copy(P::AbstractChain)
 end
 
 function Base.getindex(P::AbstractChain,idx::Integer)
+    return P.vertices[idx]
+end
+
+function Base.getindex(P::AbstractChain,idx::AbstractUnitRange)
     return P.vertices[idx]
 end
 
@@ -836,6 +854,67 @@ function exactFourKnot(l::Real)
     v5 = v4 + rotate(ey,ang3,-1*ex)
     v6 = v5 + l*rotate(-1*ex,ang4,unitVector(v5-v4))
     return PolygonalChain([v0,v1,v2,v3,v4,v5,v6])
+end
+
+"""
+helix(firstpoint::Point,endpoint::Point,nden::Integer;r::Real=1e-1,nturn::Integer=2)
+
+Returns a PolygonalChain of the verices of an helix with axis of `endpoin-firstpoint`, `nden` internal points and `r` radius. Number of turns of the helix can be set with `nturn`.
+"""
+function helix(firstpoint::Point,endpoint::Point,nden::Integer;r::Real=1e-1,nturn::Integer=2)
+    dir = endpoint - firstpoint
+    r = r*norm(dir)
+    heights = LinRange(0,1,nden+2)
+    #angles = LinRange(0,2*pi*nturn,nden+2)
+    angles = LinRange(0,pi,nden+2)
+    vertices = [Point(0.0,0.0,0.0) for i in 1:nden+2]
+    vertices[1] = firstpoint
+    vertices[end] = endpoint
+    vec1,vec2 = orthogonalBasis(unitVector(dir))
+    for i in 2:nden+1
+        vertices[i] = firstpoint + heights[i]*dir +  r*sin(angles[i])*vec1 # + r*sin(angles[i])*vec2
+    end
+    return PolygonalChain(vertices)
+end
+
+
+"""
+helixify(P::PolygonalChain,nden::Integer;r::Real=1e-1,nturn::Integer=2)
+
+Returns a PolygonalChain where each link of P is now transformed into an helix with
+`nden` points and radius `r` 
+"""
+function helixify(P::PolygonalChain,nden::Integer;r::Real=1e-1,nturn::Integer=2)
+    n = length(P)
+    T = typeof(P[1].x)
+    vertices = [Point(T,P[end]) for i in 1:(n*(nden+1))+1]
+    c = 0
+    for i in 1:n
+        d = c+1+nden
+        vertices[c+1:d] = helix(P[i],P[i+1],nden,r=r,nturn=nturn)[1:end-1]
+        c = d
+    end
+    return PolygonalChain(vertices)
+end
+
+"""
+helixify(P::PolygonalChain,ndens::Array{<:Integer,1};r::Real=1e-1,nturn::Integer=2)
+
+Returns a PolygonalChain where each link of P is now transformed into an helix with
+`nden[i]` points and radius `r` 
+"""
+function helixify(P::PolygonalChain,ndens::Array{<:Integer,1};r::Real=1e-1,nturn::Integer=2)
+    n = length(P)
+    T = typeof(P[1].x)
+    s = sum(ndens)
+    vertices = [Point(T,P[end]) for i in 1:(s+n+1)]
+    c = 0
+    for i in 1:n
+        d = c+1+ndens[i]
+        vertices[c+1:d] = helix(P[i],P[i+1],ndens[i],r=r,nturn=nturn)[1:end-1]
+        c = d
+    end
+    return PolygonalChain(vertices)
 end
 
 function randomRigidTransform(P::PolygonalChain)

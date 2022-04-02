@@ -1,9 +1,12 @@
-extra/.
+extra/Al.csv
+extra/ener.csv
+extra/mat.csv
 ipynb_checkpoints/*
 .VSCodeCounter/*
 outputs/*
 *.png
 *.mp4
+*.avi
 *.gif
 *.pdf
 *.zip
