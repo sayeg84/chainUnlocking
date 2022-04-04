@@ -1,7 +1,6 @@
 using ArgParse
 using Dates
 const date_str = Dates.format(Dates.now(),"YYYY-mm-dd_HH-MM")
-
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
@@ -18,17 +17,25 @@ function parse_commandline()
             arg_type = String
             default = "knittingNeedle"
         "--path"
-            help = "Folder to save the simulations"
+            help = "Folder to save the simulations. Defaults to current date"
             arg_type = String
             default = joinpath("..","outputs",date_str)
         "--indep_simuls"
-            help = "Number of simulations per l value"
+            help = "Number of independent simulations."
             arg_type = Int
             default = 4
         "--processes"
-            help = "Parallel processes to repart the simulations"
+            help = "Parallel processes to distribute the simulations"
             arg_type = Int
-            default = 4
+            default = 1
+        "--max_iter"
+            help = "Maximum number of iterations"
+            arg_type = Int
+            default = 10_000
+        "--tolerance"
+            help = "Tolerance for minimum value of function"
+            arg_type = Float64
+            default = 1e-2
         "--lmin"
             help = "minimum value for l"
             arg_type = Float64
@@ -44,37 +51,45 @@ function parse_commandline()
         "--log_l"
             help = "flag to tell if logarithmic space must be filled for the l Values"
             action = :store_true
+        "--internal"
+            help= "Flag to indicate if internal angles are also allowed to be changed. Only for MH simulations"
+            action = :store_true
         "--max_angle"
-            help = "maximum angle for rotation"
+            help = "Maximum angle change for DOFs Only for MH simulations"
             arg_type = Float64
             default = pi/40
-        "--max_iter"
-            help = "maximum number of iterations"
+        "--mut_k"
+            help = "Maximum degree of mutation. Only for MH simulations"
             arg_type = Int
-            default = 10_000 
+            default = 3 
+        "--selection"
+            help = "Maximum degree of mutation. Only for MH simulations"
+            arg_type = String
+            default = "RouletteWheelSelection" 
         "--temp_init"
-            help = "Initial temperature for simulated annelaing"
+            help = "Initial temperature. Only valid for Simulated Annealing"
             arg_type = Float64
             default = 4.0
         "--temp_f"
-            help = "Final temperature for simulated annelaing"
+            help = "Final temperature. Only valid for Simulated Annealing"
             arg_type = Float64
             default = 1e-2
         "--iter_per_temp"
-            help = "Iterations per temperature for simulated annealing"
+            help = "Iterations per temperature. Only valid for Simulated Annealing"
             arg_type = Int
             default = 20
-        "--tolerance"
-            help = "Tolerance for minimum value of function"
-            arg_type = Float64
-            default = 1e-2
+        "--temp_program"
+            help = "Temperature program. Only valid for Simulated Annealing"
+            arg_type = String
+            default = "ExponentialProgram"
         "--time_step"
-            help = "Time step size. Only applies to sobolev gradient descent"
+            help = "Time step size. Only valid for GD simulations"
             arg_type = Float64
             default = 1e-2
-        "--internal"
-            help= "Flag to indicate if internal angles are also allowed to be changed"
-            action = :store_true
+        "--ndens"
+            help = "Number of new nodes on each link represented as ints separated by commas (\"2,3,4\"). Only valid for CurvifiedSobolev simulation"
+            arg_type = String
+            default = ""
         "--debug"
             help= "Flag passed to methods to print debug info on screen"
             action = :store_true

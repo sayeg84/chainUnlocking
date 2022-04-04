@@ -63,6 +63,10 @@ end
 function Base.copy(p::Point)::Point
     return Point(p.x, p.y, p.z)
 end
+
+function Base.eltype(p::Point)
+    return typeof(p.x)
+end
  
 """
 dot(p::Point,q::Point)
@@ -223,6 +227,10 @@ function Base.copy(A::Matrix)::Matrix
     return  Matrix(A.xx, A.xy, A.xz, 
     A.yx, A.yy, A.yz,
     A.zx, A.zy, A.zz)
+end
+
+function Base.eltype(A::Matrix)
+    return typeof(A.xx)
 end
 
 function Base.transpose(A::Matrix)::Matrix
@@ -407,6 +415,14 @@ function Base.copy(P::AbstractChain)
     return typeof(P)(copy(P.vertices))
 end
 
+function Base.eltype(P::AbstractChain)
+    return typeof(P.vertices[1])
+end
+
+function ftype(P::AbstractChain)
+    return typeof(P.vertices[1].x)
+end
+
 function Base.getindex(P::AbstractChain,idx::Integer)
     return P.vertices[idx]
 end
@@ -524,7 +540,7 @@ end
 
 function linkLengths(P::AbstractChain)
     n = length(P)
-    lengths = zeros(typeof(P[1].x),n)
+    lengths = zeros(ftype(P),n)
     for i in 1:n
         lengths[i] = distance(P[i],P[i+1])
     end
@@ -533,7 +549,7 @@ end
 
 function linkAngles(P::AbstractChain)
     n = length(P)
-    angles = zeros(typeof(P[1].x),n-1)
+    angles = zeros(ftype(P),n-1)
     for i in 1:n-1
         angles[i] = bangle(P[i],P[i+1],P[i+2])
     end
@@ -542,7 +558,7 @@ end
 
 function dihedralAngles(P::AbstractChain)
     n = length(P)
-    dihedrals = zeros(typeof(P[1].x),n-2)
+    dihedrals = zeros(ftype(P),n-2)
     for i in 1:n-2
         dihedrals[i] = dihedral(P[i],P[i+1],P[i+2],P[i+3])
     end
@@ -551,7 +567,7 @@ end
 
 function internalCoordinates(P::AbstractChain)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     lengths = zeros(T,n)
     angles = zeros(T,n-1)
     dihedrals = zeros(T,n-2)
@@ -746,6 +762,18 @@ function internalRotateFast!(P::PolygonalChain,i::Integer,theta::RealOrDual)
     end
 end
 
+function rotate!(P::AbstractChain,ang_idx::Integer,alpha::Real)
+    n = length(P)
+    if 1 <= ang_idx <= n-2
+        dihedralRotate!(P,ang_idx,alpha)
+    elseif n-1 <= ang_idx <= 2*n-3
+        ang_idx = ang_idx - n + 2 # adjusting to be smaller 
+        internalRotate!(P,ang_idx,alpha)
+    else
+        error("index $(ang_idx) is not supported")
+    end
+end
+
 ########################################################
 
 # Important polygonal chains
@@ -886,7 +914,7 @@ Returns a PolygonalChain where each link of P is now transformed into an helix w
 """
 function helixify(P::PolygonalChain,nden::Integer;r::Real=1e-1,nturn::Integer=2)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     vertices = [Point(T,P[end]) for i in 1:(n*(nden+1))+1]
     c = 0
     for i in 1:n
@@ -905,7 +933,7 @@ Returns a PolygonalChain where each link of P is now transformed into an helix w
 """
 function helixify(P::PolygonalChain,ndens::Array{<:Integer,1};r::Real=1e-1,nturn::Integer=2)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     s = sum(ndens)
     vertices = [Point(T,P[end]) for i in 1:(s+n+1)]
     c = 0

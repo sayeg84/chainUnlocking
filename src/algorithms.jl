@@ -180,8 +180,8 @@ function basicSMetaheuristic(Q::PolygonalChain,minFunc::Function,
     end
 
     ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(typeof(Q[1].x),max_iter)
-    fun_vals = zeros(typeof(Q[1].x),max_iter)
+    ang_vals = zeros(eltype(Q),max_iter)
+    fun_vals = zeros(eltype(Q),max_iter)
     nq = length(Q)
     minf_val = minFunc(Q)
     c = 1
@@ -215,9 +215,7 @@ function localRandomSearch(Q::PolygonalChain,
     alphamax::Real=pi/2,
     alphamin::Real=-pi/2,
     internal::Bool=false;
-    temp_init::Float64=1.0,
-    temp_f::Float64=1e-4,
-    iter_per_temp::Integer=20,
+    population::Integer=8,
     max_iter::Integer=1000,
     debug::Bool=false) where {F}
     # preprocessing
@@ -226,8 +224,8 @@ function localRandomSearch(Q::PolygonalChain,
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     ang_idxs  = zeros(Int16,max_iter)
-    ang_vals  = zeros(typeof(Q[1].x),max_iter)
-    fun_vals =  zeros(typeof(Q[1].x),max_iter)
+    ang_vals  = zeros(ftype(Q),max_iter)
+    fun_vals =  zeros(ftype(Q),max_iter)
     nq = length(Q)
     fval = minFunc(Q)
     c = 1
@@ -254,12 +252,45 @@ function localRandomSearch(Q::PolygonalChain,
     return Q,ang_vals[1:c],ang_idxs[1:c],fun_vals[1:c]
 end
 
-function linearTemperature(temp::Real,k::Integer;b::Float64=1e-2)
-    return temp - b
+abstract type AbstractTempProgram end
+
+struct LinearProgram <:AbstractTempProgram
+    dec::Float64
+    LinearProgram(x::Real=1e-2) = new(x) 
 end
 
-function exponentialTemperature(temp::Real,k::Integer;a::Float64=0.99)
-    return a*temp
+function kthTemp(lin::LinearProgram,init_temp::Real,k::Integer)
+    return init_temp - k*lin.dec
+end
+
+function updateTemp(lin::LinearProgram,curr_temp::Real,k::Integer)
+    return curr_temp - lin.dec
+end
+
+struct ExponentialProgram <:AbstractTempProgram
+    expon::Float64
+    ExponentialProgram(x::Real=0.99) = new(x) 
+end
+
+function kthTemp(ex::ExponentialProgram,init_temp::Real,k::Integer)
+    return init_temp*ex.expon^k
+end
+
+function updateTemp(ex::ExponentialProgram,curr_temp::Real,k::Integer)
+    return curr_temp*ex.expon
+end
+
+struct LogarithmicProgram <:AbstractTempProgram
+    base::Float64
+    LogarithmicProgram(x::Real=2.0) = new(x) 
+end
+
+function kthTemp(loga::LogarithmicProgram,init_temp::Real,k::Integer)
+    return log(loga.base,init_temp)/log(loga.base,k+1)
+end
+
+function updateTemp(loga::LogarithmicProgram,curr_temp::Real,k::Integer)
+    return curr_temp*log(loga.base,k+1)/log(loga.base,k+2)
 end
 
 function singleSimulatedAnnealing(Q::PolygonalChain,
@@ -271,7 +302,8 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
     temp_init::Float64=1.0,
     temp_f::Float64=1e-4,
     iter_per_temp::Integer=20,
-    tempUpdate=exponentialTemperature,
+    population::Integer=8,
+    tempProgram::AbstractTempProgram=ExponentialProgram(),
     max_iter::Integer=1000,
     debug::Bool=false) where {F}
     # preprocessing
@@ -279,67 +311,73 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
     end
-    dist = Distributions.TruncatedNormal(0,1,alphamin,alphamax)
-    ang_idxs = zeros(Int16,max_iter)
-    ang_vals = zeros(typeof(Q[1].x),max_iter)
-    fun_vals = zeros(typeof(Q[1].x),max_iter)
+    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    ang_idxs = zeros(Int16,max_iter,population)
+    ang_vals = zeros(ftype(Q),max_iter,population)
+    fun_vals = zeros(ftype(Q),max_iter+1,population)
+    Qs = [perturbe(Q) for _ in 1:population]
+    initQs = copy(Qs)
+    fun_vals[1,:]  = [minFunc(R) for R in Qs]
     nq = length(Q)
     fval = minFunc(Q)
     temp = temp_init*abs(fval)
     temp_f = temp_f*abs(fval) 
     c = 1
     c2 = 1
-    while fval > tolerance && c <= max_iter && temp > temp_f
+    while c <= max_iter && fval > tolerance && temp > temp_f
         for i in 1:iter_per_temp
-            #alpha = uniformAngle(alphamin,alphamax)
-            alpha = rand(dist)
-            (internal) && (alpha = alpha/2)
-            ang_idx = generateAngleIndex(nq,internal)
-            if debug
-                println("c = $c")
-                println("c2 = $(c2)")
-                println("i = $i")
-                println("Q = $Q")
-                println("ang_idx = $(ang_idx)")
-                println("ang_val  = $(alpha)")
-                println("# testing intersection")
-                println("\n")
-            end
-            inter_flag,newQ = checkSingleMutation(Q,ang_idx,alpha,debug=debug)
-            debug && println("inter  = $(inter_flag)")
-            debug && println("newQ = $(newQ)")
-            if !inter_flag
-                
-                dnew = minFunc(newQ)
-                r = log(rand())
-                p = (-dnew + fval)/temp
+            for j in 1:population
+                fval = minFunc(Q)
+                #alpha = uniformAngle(alphamin,alphamax)
+                alpha = rand(dist)
+                (internal) && (alpha = alpha/2)
+                ang_idx = generateAngleIndex(nq,internal)
                 if debug
-                    println("# no inter")
-                    println("fval = $fval")
-                    println("dnew = $(dnew)")
-                    println("p = $p")
-                    println("r = $r")
+                    println("c = $c")
+                    println("c2 = $(c2)")
+                    println("i = $i")
+                    println("Q = $Q")
+                    println("ang_idx = $(ang_idx)")
+                    println("ang_val  = $(alpha)")
+                    println("# testing intersection")
+                    println("\n")
                 end
-                if r < p
-                    debug && println("# accepted")
-                    Q = newQ
-                    fval = dnew
-                    ang_idxs[c] = ang_idx
-                    ang_vals[c] = alpha
-                    fun_vals[c] = dnew
+                inter_flag,newQ = checkSingleMutation(Qs[j],ang_idx,alpha,debug=debug)
+                debug && println("inter  = $(inter_flag)")
+                debug && println("newQ = $(newQ[j])")
+                if !inter_flag
+                    
+                    fval_new = minFunc(newQ)
+                    r = log(rand())
+                    p = (-fval_new + fval)/temp
+                    if debug
+                        println("# no inter")
+                        println("fval = $fval")
+                        println("fval_new = $(fval_new)")
+                        println("p = $p")
+                        println("r = $r")
+                    end
+                    if r < p
+                        debug && println("# accepted")
+                        Qs[j] = newQ
+                        fval            = fval_new
+                        ang_idxs[c,j]   = ang_idx
+                        ang_vals[c,j]   = alpha
+                        fun_vals[c+1,j] = dnew
 
+                    end
+                else
+                    fun_vals[c+1,j] = fval
                 end
-            else
-                fun_vals[c] = fval
             end
             c += 1
             debug && println("\n\n")
         end
         c2 += 1
-        temp = tempUpdate(temp,c2)
+        temp = updateTemp(tempProgram,temp,c2)
     end
     c = c > max_iter ? max_iter : c
-    return Q,ang_vals[1:c],ang_idxs[1:c],fun_vals[1:c]
+    return initQs,Qs,fun_vals[1:c+1,:],ang_vals[1:c,:],ang_idxs[1:c,:]
 end
 
 function multipleSimulatedAnnealing(Q::PolygonalChain,
@@ -351,7 +389,8 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
     temp_init::Float64=1.0,
     temp_f::Float64=1e-4,
     iter_per_temp::Integer=20,
-    tempUpdate=exponentialTemperature,
+    tempProgram::AbstractTempProgram=ExponentialProgram(),
+    population::Integer=8,
     max_iter::Integer=1000,
     mut_k::Integer=3,
     debug::Bool=false) where {F}
@@ -361,64 +400,71 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
-    ang_idxs = zeros(Int16,mut_k*max_iter)
-    ang_vals = zeros(typeof(Q[1].x),mut_k*max_iter)
-    fun_vals = zeros(typeof(Q[1].x),max_iter)
+    ang_idxs = zeros(Int16,mut_k*max_iter,population)
+    ang_vals = zeros(ftype(Q),mut_k*max_iter,population)
+    fun_vals = zeros(ftype(Q),max_iter+1,population)
+    Qs = [perturbe(Q) for _ in 1:population]
+    initQs = copy(Qs)
+    fun_vals[1,:]  = [minFunc(R) for R in Qs]
     nq = length(Q)
     fval = minFunc(Q)
     temp = temp_init*abs(fval)
     temp_f = temp_f*abs(fval) 
     c = 1
     c2 = 1
-    while fval > tolerance && c <= max_iter && temp > temp_f
+    while  c <= max_iter && fval > tolerance && temp > temp_f
         for i in 1:iter_per_temp
-            alphas = [rand(dist) for j in 1:mut_k]
-            (internal) && (alphas = 0.5*alphas)
-            mov_ang_idxs = internal ? Random.randperm(2*nq-3)[1:mut_k] : Random.randperm(nq-2)[1:mut_k]
-            if debug
-                println("c = $c")
-                println("c2 = $(c2)")
-                println("i = $i")
-                println("Q = $Q")
-                println("mov_ang_idxs = $(mov_ang_idxs)")
-                println("ang_val  = $(alphas)")
-                println("# testing intersection")
-                println("\n")
-            end
-            inter_flag,newQ = checkMultipleMutation(Q,mov_ang_idxs,alphas,debug=debug)
-            debug && println("inter  = $(inter_flag)")
-            debug && println("newQ = $(newQ)")
-            if !inter_flag
-                dnew = minFunc(newQ)
-                r = log(rand())
-                p = (-dnew + fval)/temp
+            for j in 1:population
+                alphas = [rand(dist) for _ in 1:mut_k]
+                (internal) && (alphas = 0.5*alphas)
+                mov_ang_idxs = internal ? Random.randperm(2*nq-3)[1:mut_k] : Random.randperm(nq-2)[1:mut_k]
                 if debug
-                    println("# no inter")
-                    println("fval = $fval")
-                    println("dnew = $(dnew)")
-                    println("p = $p")
-                    println("r = $r")
+                    println("c = $c")
+                    println("c2 = $(c2)")
+                    println("i = $i")
+                    println("Q = $(Qs[j])")
+                    println("mov_ang_idxs = $(mov_ang_idxs)")
+                    println("ang_val  = $(alphas)")
+                    println("# testing intersection")
+                    println("\n")
                 end
-                if r < p
-                    debug && println("# accepted")
-                    Q = newQ
-                    fval = dnew
-                    ang_idxs[3*c-2:3*c] = ang_idxs
-                    ang_vals[3*c-2:3*c] = alphas
-                    fun_vals[c] = dnew
+                inter_flag,newQ = checkMultipleMutation(Qs[j],mov_ang_idxs,alphas,debug=debug)
+                debug && println("inter  = $(inter_flag)")
+                debug && println("newQ = $(newQ)")
+                if !inter_flag
+                    dnew = minFunc(newQ)
+                    r = log(rand())
+                    p = (-dnew + fval)/temp
+                    if debug
+                        println("# no inter")
+                        println("fval = $fval")
+                        println("dnew = $(dnew)")
+                        println("p = $p")
+                        println("r = $r")
+                    end
+                    if r < p
+                        debug && println("# accepted")
+                        Qs[j] = newQ
+                        fval = dnew
+                        li = mut_k*(c-1)+1
+                        len = length(alphas)
+                        ang_idxs[li:li+len-1,j] = mov_ang_idxs
+                        ang_vals[li:li+len-1,j] = alphas
+                        fun_vals[c+1,j] = dnew
 
+                    end
+                else
+                    fun_vals[c+1,j] = fval
                 end
-            else
-                fun_vals[c] = fval
             end
             c += 1
             debug && println("\n\n")
         end
         c2 += 1
-        temp = tempUpdate(temp,c2)
+        temp = updateTemp(tempProgram,temp,c2)
     end
     c = c > max_iter ? max_iter : c
-    return Q,ang_vals[1:3*c],ang_idxs[1:3*c],fun_vals[1:c]
+    return initQs,Qs,fun_vals[1:c+1,:],ang_idxs[1:(c*mut_k),:],ang_vals[1:(c*mut_k),:]
 end
 
 # implementation taken from Wheeler et al "Algorithms for Optimization"
@@ -428,6 +474,7 @@ abstract type SelectionMethod end
 
 struct TruncationSelection <: SelectionMethod
     k::Int64 
+    TruncationSelection(k::Integer=3) = new(k)
 end
 
 function select(t::TruncationSelection,fvals::Array{<:Real,1})
@@ -437,6 +484,7 @@ end
 
 struct TournamentSelection <: SelectionMethod
     k::Int64 
+    TruncationSelection(k::Integer=3) = new(k)
 end
 
 function select(t::TournamentSelection,fvals::Array{<:Real,1})
@@ -451,9 +499,22 @@ end
 
 struct RouletteWheelSelection <: SelectionMethod end
 
+function normalize(fvals::Array{<:Real,1})
+    fvals = [Float64(maximum(fvals) - val) for val in fvals]
+    return 0
+end
+
 function select(t::RouletteWheelSelection,fvals::Array{<:Real,1})
     fvals = [Float64(maximum(fvals) - val) for val in fvals]
-    cat = Distributions.Categorical(LinearAlgebra.normalize(fvals,1))
+    if !isapprox(sum(fvals),0.0;atol=1e-15)
+        pvec = LinearAlgebra.normalize(fvals,1)
+    else
+        # case where function values are all the same 
+        println("fvals = $fvals")
+        println("fvals are all the same")
+        pvec = [1/length(fvals) for _ in fvals]
+    end
+    cat = Distributions.Categorical(pvec)
     return rand(cat,length(fvals))
 end
 
@@ -464,8 +525,8 @@ function genetic(Q::PolygonalChain,
     alphamin::Real=-pi/2,
     internal::Bool=false;
     selection::SelectionMethod=RouletteWheelSelection(),
-    max_iter::Integer=1000,
     population::Integer=8,
+    max_iter::Integer=1000,
     mut_k::Integer=3,
     debug::Bool=false) where {F}
     # preprocessing
@@ -474,12 +535,16 @@ function genetic(Q::PolygonalChain,
         minFunc = Q -> distToFlat(Q,auxQ)
     end
     dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
-    fun_vals = zeros(typeof(Q[1].x),max_iter,population)
+    ang_idxs = zeros(Int16,max_iter*mut_k,population)
+    ang_vals = zeros(ftype(Q),max_iter*mut_k,population)
+    fun_vals = zeros(ftype(Q),max_iter+1,population)
+    parents = zeros(Int8,max_iter,population)
     nq = length(Q)
     Qs = [perturbe(Q) for _ in 1:population]
-    fvals  = [minFunc(R) for R in Qs]
+    initQs = copy(Qs)
+    fun_vals[1,:]  = [minFunc(R) for R in Qs]
     c = 1
-    while maximum(fvals) > tolerance && c <= max_iter
+    while c <= max_iter && maximum(fun_vals[c,:]) > tolerance 
         # mutation
         for j in 1:population
             mut_length = rand(1:mut_k)
@@ -502,23 +567,36 @@ function genetic(Q::PolygonalChain,
             end
             if !inter_flag
                 Qs[j] = newQ
-                fvals[j] = minFunc(newQ)
+                li = mut_k*(c-1)+1
+                len = length(alphas)
+                ang_idxs[li:li+len-1,j] = mov_ang_idxs
+                ang_vals[li:li+len-1,j] = alphas
+                fun_vals[c+1,j]           = minFunc(newQ)
+            else
+                fun_vals[c+1,j]           = fun_vals[c,j]
             end
         end
-        fun_vals[c,:] = fvals
         # parent selection
-        parents = select(selection,fvals)
+        parents[c,:] = select(selection,fun_vals[c+1,:])
+        if sum(abs.(diff(parents[c,:])))==0
+            println(c)
+            println("equal parents")
+        end
         if debug
             for Q in Qs
                 println(Q)
             end
         end
-        Qs = Qs[parents]
+        # changing indexes
+        Qs = Qs[parents[c,:]]
+        ang_idxs[1:(c*mut_k),:] = ang_idxs[1:(c*mut_k),parents[c,:]]
+        ang_vals[1:(c*mut_k),:] = ang_vals[1:(c*mut_k),parents[c,:]]
+        fun_vals[1:(c+1),:]         = fun_vals[1:(c+1),parents[c,:]]
         c += 1
         debug && println("\n\n")
     end
     c = c > max_iter ? max_iter : c
-    return Qs,fun_vals[1:c,:]
+    return initQs,Qs,fun_vals[1:c+1,:],ang_idxs[1:(c*mut_k),:],ang_vals[1:(c*mut_k),:],parents[1:c,:]
 end
 
 
@@ -609,7 +687,7 @@ end
 
 function Bmatrix(P::PolygonalChain,sigma::Real=0.75;debug::Bool=false)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     B = zeros(T,n+1,n+1)
     for i in 1:n
         # see `demaineEnergy` comment
@@ -692,7 +770,7 @@ end
 
 function B0matrix(P::PolygonalChain,sigma::Real=0.75)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     B0 = zeros(T,n+1,n+1)
     for i in 1:n
         for j in 1:(i-2)
@@ -719,7 +797,7 @@ end
 
 function Amatrix(P::PolygonalChain,sigma::Real=0.75)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     B  = zeros(T,n+1,n+1)
     B0 = zeros(T,n+1,n+1)
     for i in 1:n
@@ -770,7 +848,7 @@ end
 function Aline(P::PolygonalChain,sigma::Real=0.75)
     n = length(P)
     A = Amatrix(P,sigma)
-    T = typeof(P[1].x)
+    T = ftype(P)
     
     #=
     zer = zeros(T,n+1,n+1)
@@ -792,7 +870,7 @@ end
 
 function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     if internal
         res = zeros(T,n)
         for i in 1:n
@@ -848,7 +926,7 @@ function bangleDev(a,b,c)
 end
 
 
-function diff(f,p::Point,h::Real=1e-3)
+function deriv(f,p::Point,h::Real=1e-3)
     xp = Point(Hyperdual(p.x,h),Hyperdual(p.y,0),Hyperdual(p.z,0))
     yp = Point(Hyperdual(p.x,0),Hyperdual(p.y,h),Hyperdual(p.z,0))
     zp = Point(Hyperdual(p.x,0),Hyperdual(p.y,0),Hyperdual(p.z,h))
@@ -869,9 +947,9 @@ function hej(j::Integer,h::Real)
     end
 end
 
-function diff(f,P::PolygonalChain,h::Real=1e-3)
+function deriv(f,P::PolygonalChain,h::Real=1e-3)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     res = zeros(T,3*n+3)
     hyperP = PolygonalChain([Point{Hyperdual}(p) for p in P.vertices])
     for i in 1:n+1
@@ -891,7 +969,7 @@ end
 
 function diffLocalChange(f,P::PolygonalChain,h::Real=1e-3)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     res = zeros(T,3*n+3)
     for i in 1:n+1
         #println("i = $i")
@@ -912,7 +990,7 @@ using DelimitedFiles
 
 function constraints(P::PolygonalChain,ls,bas,das,internal::Bool)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     if internal
         res = zeros(T,n)
         for i in 1:n
@@ -954,7 +1032,7 @@ end
 
 function hardConstraints(P::PolygonalChain,ls,bas,das)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     res = zeros(T,3*n-3)
     for i in 1:n
         res[i] = distance(P[i+1],P[i])-ls[i]
@@ -988,7 +1066,7 @@ end
 
 function helixifiedConstraints(P::PolygonalChain,ndens::Array{<:Integer,1},ls,bas,das;debug::Bool=false)
     nhelices = length(ndens)
-    T = typeof(P[1].x)
+    T = ftype(P)
     resn = 0
     for i in 1:nhelices 
         n = ndens[i]+1 # length of helix
@@ -1067,7 +1145,7 @@ end
 
 function constraintsJacobian(P::PolygonalChain,internal::Bool)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     if internal
         C = zeros(T,n,3*n+3)
         # length restrictions
@@ -1094,9 +1172,9 @@ function constraintsJacobian(P::PolygonalChain,internal::Bool)
         end
         # internal angle restrictions
         for i in 1:n-1
-            grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
-            grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
-            grad3 = diff(p->bangle(P[i],P[i+1],p),P[i+2])
+            grad1 = deriv(p->bangle(p,P[i+1],P[i+2]),P[i])
+            grad2 = deriv(p->bangle(P[i],p,P[i+2]),P[i+1])
+            grad3 = deriv(p->bangle(P[i],P[i+1],p),P[i+2])
             C[n+i,3*i-2:3*i]   = grad1
             C[n+i,3*i+1:3*i+3] = grad2
             C[n+i,3*i+4:3*i+6] = grad3
@@ -1109,7 +1187,7 @@ end
 
 function hardConstraintsJacobian(P::PolygonalChain)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     C = zeros(T,3*n-3,3*n+3)
     # length restrictions
     for i in 1:n
@@ -1123,9 +1201,9 @@ function hardConstraintsJacobian(P::PolygonalChain)
     end
     # internal angle restrictions
     for i in 1:n-1
-        grad1 = diff(p->bangle(p,P[i+1],P[i+2]),P[i])
-        grad2 = diff(p->bangle(P[i],p,P[i+2]),P[i+1])
-        grad3 = diff(p->bangle(P[i],P[i+1],p),P[i+2])
+        grad1 = deriv(p->bangle(p,P[i+1],P[i+2]),P[i])
+        grad2 = deriv(p->bangle(P[i],p,P[i+2]),P[i+1])
+        grad3 = deriv(p->bangle(P[i],P[i+1],p),P[i+2])
         C[n+i,3*i-2:3*i]   = grad1
         C[n+i,3*i+1:3*i+3] = grad2
         C[n+i,3*i+4:3*i+6] = grad3
@@ -1133,10 +1211,10 @@ function hardConstraintsJacobian(P::PolygonalChain)
     # dihedral angle restrictions
     d = (2*n-1)
     for i in 1:n-2
-        grad1 = diff(p->dihedral(p,P[i+1],P[i+2],P[i+3]),P[i])
-        grad2 = diff(p->dihedral(P[i],p,P[i+2],P[i+3]),P[i+1])
-        grad3 = diff(p->dihedral(P[i],P[i+1],p,P[i+3]),P[i+2])
-        grad4 = diff(p->dihedral(P[i],P[i+1],P[i+2],p),P[i+3])
+        grad1 = deriv(p->dihedral(p,P[i+1],P[i+2],P[i+3]),P[i])
+        grad2 = deriv(p->dihedral(P[i],p,P[i+2],P[i+3]),P[i+1])
+        grad3 = deriv(p->dihedral(P[i],P[i+1],p,P[i+3]),P[i+2])
+        grad4 = deriv(p->dihedral(P[i],P[i+1],P[i+2],p),P[i+3])
         C[d+i,3*i-2:3*i]   = grad1
         C[d+i,3*i+1:3*i+3] = grad2
         C[d+i,3*i+4:3*i+6] = grad3
@@ -1148,7 +1226,7 @@ end
 function helixifiedConstraintsJacobian(P::PolygonalChain,ndens::Array{<:Integer,1};debug::Bool=false)
     ntot = length(P)
     nhelices = length(ndens)
-    T = typeof(P[1].x)
+    T = ftype(P)
     resn = 0
     for i in 1:nhelices 
         n = ndens[i]+1 # length of helix
@@ -1183,10 +1261,10 @@ function movement(P::PolygonalChain,internal::Bool,
     tau::Real=1e-2,debug::Bool=false)
     sigma = ((beta-1)/alpha)-1
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     k = internal ? n : 2*n-1
     ener = Q -> tangentEnergy(Q,alpha=alpha,beta=beta)
-    ener_grad = diff(ener,P)
+    ener_grad = deriv(ener,P)
     #println(ener_grad)
     #ener_grad = reshape(ener_grad,(3,n+1))
     #ener_grad = transpose(ener_grad)
@@ -1295,15 +1373,19 @@ end
 
 
 
-function sobolevGradientDescent(P::AbstractChain,iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;tau::Real=1e-2,debug::Bool=false,renom::Bool=false)
+function sobolevGradientDescent(P::AbstractChain,
+    iter::Integer
+    ,alpha::Real = 2.0, beta::Real = 4.5;
+    tau::Real=1e-2,
+    debug::Bool=false)
     Q = copy(P)
     ls,bas,das = internalCoordinates(P)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     res = zeros(T,iter+1,3*n+3)
     res[1,:] = toArray(Q)
     for i in 1:iter
-        if i % 100 == 0
+        if i % 10 == 0
             println("iter = $i")
         end
         newQ = PolygonalChain(res[i,:])
@@ -1319,7 +1401,7 @@ function movement(P::PolygonalChain,ndens::Array{<:Integer,1},
     tau::Real=1e-2,debug::Bool=false)
     sigma = ((beta-1)/alpha)-1
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     # counting restrictions
     k = 0
     for nden in ndens 
@@ -1327,7 +1409,7 @@ function movement(P::PolygonalChain,ndens::Array{<:Integer,1},
         k += 3*nloc-3
     end
     ener = Q -> tangentEnergy(Q,alpha=alpha,beta=beta)
-    ener_grad = diff(ener,P)
+    ener_grad = deriv(ener,P)
     Al = Aline(P,sigma)
     C = helixifiedConstraintsJacobian(P,ndens)
     mat = vcat(
@@ -1429,18 +1511,20 @@ function movement(P::PolygonalChain,ndens::Array{<:Integer,1},
     return new_chain
 end
 
-function sobolevGradientDescent(P::AbstractChain,ndens::Array{<:Integer,1},iter::Integer,alpha::Real = 2.0, beta::Real = 4.5;tau::Real=1e-2,debug::Bool=false,renom::Bool=false)
+function sobolevGradientDescent(P::AbstractChain,
+    ndens::Array{<:Integer,1},
+    iter::Integer,
+    alpha::Real = 2.0,beta::Real = 4.5;
+    tau::Real=1e-2,
+    debug::Bool=false)
     Q = copy(P)
     ls,bas,das = internalCoordinates(P)
     n = length(P)
-    T = typeof(P[1].x)
+    T = ftype(P)
     res = zeros(T,iter+1,3*n+3)
     res[1,:] = toArray(Q)
     for i in 1:iter
         println("iter = $i")
-        if i % 10 == 0
-            println("iter = $i")
-        end
         newQ = PolygonalChain(res[i,:])
         res[i+1,:] = movement(newQ,ndens,ls,bas,das,alpha,beta,tau=tau,debug=debug)
     end
@@ -1456,9 +1540,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
         println(jacobian(bangle,hcat(toArray(a),toArray(b),toArray(c)),1e-3;df=hyperdualPartialDerivative))
         println(bangleDev(a,b,c))
         auxFunc(p::Point) = bangle(p,b,c)
-        println(diff(auxFunc,a))
+        println(deriv(auxFunc,a))
         aux2(P::PolygonalChain) = bangle(P[1],P[2],P[3])
-        println(diff(aux2,PolygonalChain([a,b,c])))
+        println(deriv(aux2,PolygonalChain([a,b,c])))
     end
     #P = PolygonalChain(6)
     #P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])

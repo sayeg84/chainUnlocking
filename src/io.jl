@@ -1,24 +1,47 @@
-include("algorithms.jl")
+include("simulations.jl")
 
 using DelimitedFiles
 using Statistics
 
-function rotate!(P::AbstractChain,ang_idx::Integer,alpha::Real)
-    n = length(P)
-    if 1 <= ang_idx <= n-2
-        dihedralRotate!(P,ang_idx,alpha)
-    elseif n-1 <= ang_idx <= 2*n-3
-        ang_idx = ang_idx - n + 2 # adjusting to be smaller 
-        internalRotate!(P,ang_idx,alpha)
-    else
-        error("index $(ang_idx) is not supported")
+const base_vars = ["algorithm","minFunc","chain","indep_simuls",
+"processes","max_iter","tolerance"]
+
+function saveMetaParams(name::AbstractString,simul::MHAlgorithm,parsed_args)
+    open(joinpath(name,"metaParams.csv"),"w+") do io
+        sim_vars = ["max_angle","mut_k","selection",
+        "temp_init","temp_f","iter_per_temp","temp_program"]
+        for var in vcat(base_vars,sim_vars)
+            str = string(var,",",parsed_args[var],"\n") 
+            write(io,str)
+        end
+    end
+end
+
+function saveMetaParams(name::AbstractString,simul::GDAlgorithm,parsed_args)
+    open(joinpath(name,"metaParams.csv"),"w+") do io
+        sim_vars = ["time_step","ndens"]
+        for var in vcat(base_vars,sim_vars)
+            str = string(var,",",parsed_args[var],"\n") 
+            write(io,str)
+        end
     end
 end
 
 function saveChain(name::AbstractString,P::AbstractChain)
+    ns = length(P)+1
+    nzeros = Int(ceil(log10(ns+1)))
+    pnames = [lpad(i,nzeros,'0') for i in 1:ns]
+    pnames = [string("p",i) for i in pnames]
+    pnames = [string(i,c) for i in pnames for c in ("x","y","z")]
+    firstrow = join(pnames,',')
+    firstrow = string(firstrow,"\n")
     arr = to2DArray(P)
     open(name,"w+") do io
-        DelimitedFiles.writedlm(io,arr,',')
+        write(io,firstrow)
+        coordinates = [string(x) for x in reshape(transpose(arr),length(arr))]
+        coordinates = join(coordinates,",")
+        coordinates = string(coordinates,"\n")
+        write(io,coordinates)
     end
 end
 
@@ -44,11 +67,10 @@ end
 
 function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<:Real,1},minFunc)
     newQ = copy(Q)
-    funcvals = zeros(typeof(Q[1].x),length(ang_vals))
+    funcvals = zeros(ftype(Q),length(ang_vals))
     funcvals[1] = minFunc(newQ)
     for i in 1:(length(ang_vals)-1)
         if ang_idxs[i]!= 0
-            newQ = moveBeforeDihedral(newQ,ang_idxs[i])
             rotate!(newQ,ang_idxs[i],ang_vals[i])
         end
         funcvals[i+1] = minFunc(newQ)
@@ -108,7 +130,7 @@ end
 
 function saveSimulation(name::AbstractString,Q::AbstractChain,lastQ::AbstractChain,
     ang_vals::Array{<:Real,1},ang_idxs::Array{<:Real,1};saveTrajec=true)
-    saveChain(string(name,"_Q.csv"),Q)
+    saveChain(string(name,"init_Q.csv"),Q)
     saveChain(string(name,"_lastQ.csv"),lastQ)
     if saveTrajec
         saveTrajectory(string(name,"_trajectory.csv"),Q,ang_vals,ang_idxs)
@@ -127,25 +149,16 @@ function saveLtable(name::AbstractString,ls)
     end
 end
 
-function saveMetaParams(name::AbstractString,parsed_args)
-    open(joinpath(name,"metaParams.csv"),"w+") do io
-        variables = ["chain","algorithm","minFunc","tolerance",
-                     "temp_init","max_iter","max_angle"]
-        for var in variables
-            str = string(var,",",parsed_args[var],"\n") 
-            write(io,str)
-        end
-    end
-end
+
 
 function readChain(name::AbstractString)
-    chain = DelimitedFiles.readdlm(name,',',BigFloat)
-    return PolygonalChain(chain)
+    chain,_ = DelimitedFiles.readdlm(name,',',BigFloat,header=true)
+    return PolygonalChain(chain[1,:])
 end
 
 function readSingleSimulation(name::AbstractString)
-    Q = readChain(string(name,"_Q.csv"))
-    lastQ = readChain(string(name,"_lastQ.csv"))
+    Q = readChain(string(name,"init_Q.csv"))
+    lastQ = readChain(string(name,"final_Q.csv"))
     ang_idxs = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
     ang_idxs = reshape(ang_idxs,length(ang_idxs))
     ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',BigFloat)
@@ -236,10 +249,10 @@ end
 
 
 function makeCoordinates(name::AbstractString)
-    Q = readChain(string(name,"_Q.csv"))
+    Q = readChain(string(name,"init_Q.csv"))
     ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"))
     ang_vals = reshape(ang_vals,length(ang_vals))
     ang_idxs = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
     ang_idxs = reshape(ang_idxs,length(ang_idxs))
-    saveTrajectory(string(name,"_trajectory.csv"),Q,ang_vals,ang_idxs)
+    saveTrajectory(string(name,"trajectory.csv"),Q,ang_vals,ang_idxs)
  end

@@ -644,6 +644,7 @@ function case3Intersection(p1::Point,p2::Point,vp::Point,q1::Point,q2::Point,vq:
     # this should never happen in practice but we add it for debugging reasons
     # println("inside case 3")
     if xySegmentIntersection(p1,p2,vp,q1,q2,vq)
+        println("# WARNING: segments intersect before rotating")
         debug && println("# WARNING: segments intersect before rotating")
         return true
     # only test for intersection if points are in the same interval        
