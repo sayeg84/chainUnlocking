@@ -5,6 +5,14 @@ using IterativeSolvers # julia's `\` operator is not good for solving this syste
 using Random           # generating random permutations for multi mutation steps
 
 
+function distToLine(Q::AbstractChain,P::AbstractChain=makeLine(Q))
+    if length(P) == length(Q)
+        return overlapedRmsd(Q,P)^2
+    else
+        error("Chains must be of same length")
+    end
+end
+
 function distToFlat(Q::AbstractChain,P::AbstractChain=flatten(Q))
     if length(P) == length(Q)
         return overlapedRmsd(Q,P)^2
@@ -310,6 +318,9 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
+    elseif minFunc == distToLine
+        auxQ = makeLine(Q)
+        minFunc = Q -> distToLine(Q,auxQ)
     end
     dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
     ang_idxs = zeros(Int16,max_iter,population)
@@ -398,6 +409,9 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
+    elseif minFunc == distToLine
+        auxQ = makeLine(Q)
+        minFunc = Q -> distToLine(Q,auxQ)
     end
     dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
     ang_idxs = zeros(Int16,mut_k*max_iter,population)
@@ -484,11 +498,11 @@ end
 
 struct TournamentSelection <: SelectionMethod
     k::Int64 
-    TruncationSelection(k::Integer=3) = new(k)
+    TournamentSelection(k::Integer=3) = new(k)
 end
 
 function select(t::TournamentSelection,fvals::Array{<:Real,1})
-    n = length(f_vals)
+    n = length(fvals)
     vals = zeros(Int64,n) 
     for i in 1:n
         p = randperm(n)
@@ -533,8 +547,11 @@ function genetic(Q::PolygonalChain,
     if minFunc == distToFlat
         auxQ = flatten(Q)
         minFunc = Q -> distToFlat(Q,auxQ)
+    elseif minFunc == distToLine
+        auxQ = makeLine(Q)
+        minFunc = Q -> distToLine(Q,auxQ)
     end
-    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    lr = 1
     ang_idxs = zeros(Int16,max_iter*mut_k,population)
     ang_vals = zeros(ftype(Q),max_iter*mut_k,population)
     fun_vals = zeros(ftype(Q),max_iter+1,population)
@@ -546,6 +563,7 @@ function genetic(Q::PolygonalChain,
     c = 1
     while c <= max_iter && maximum(fun_vals[c,:]) > tolerance 
         # mutation
+        dist = Distributions.TruncatedNormal(0,lr*pi/8,alphamin,alphamax)
         for j in 1:population
             mut_length = rand(1:mut_k)
             alphas = [rand(dist) for _ in 1:mut_length]
@@ -576,7 +594,7 @@ function genetic(Q::PolygonalChain,
                 fun_vals[c+1,j]           = fun_vals[c,j]
             end
         end
-        # parent selection
+        # selection
         parents[c,:] = select(selection,fun_vals[c+1,:])
         if sum(abs.(diff(parents[c,:])))==0
             println(c)
@@ -593,6 +611,7 @@ function genetic(Q::PolygonalChain,
         ang_vals[1:(c*mut_k),:] = ang_vals[1:(c*mut_k),parents[c,:]]
         fun_vals[1:(c+1),:]         = fun_vals[1:(c+1),parents[c,:]]
         c += 1
+        lr = 0.99*lr
         debug && println("\n\n")
     end
     c = c > max_iter ? max_iter : c
@@ -1255,6 +1274,28 @@ function helixifiedConstraintsJacobian(P::PolygonalChain,ndens::Array{<:Integer,
     return res
 end
 
+function sobolevGradient(P::PolygonalChain,internal::Bool,alpha::Real=2.0,beta::Real=4.5)
+    sigma = ((beta-1)/alpha)-1
+    n = length(P)
+    T = ftype(P)
+    k = internal ? n : 2*n-1
+    ener = Q -> tangentEnergy(Q,alpha=alpha,beta=beta)
+    ener_grad = deriv(ener,P)
+    #println(ener_grad)
+    #ener_grad = reshape(ener_grad,(3,n+1))
+    #ener_grad = transpose(ener_grad)
+    #ener_grad = reshape(ener_grad,length(ener_grad))
+    #println(ener_grad)
+    Al = Aline(P,sigma)
+    C = constraintsJacobian(P,internal)
+    mat = vcat(
+        hcat(Al,transpose(C)),
+        hcat(C,zeros(T,k,k))
+    )
+    ener_grad_ext = vcat(ener_grad,zeros(T,k))
+    return IterativeSolvers.minres(mat,ener_grad_ext)
+end
+
 function movement(P::PolygonalChain,internal::Bool,
     ls::Array{<:Real,1},bas::Array{<:Real,1},das::Array{<:Real,1},
     alpha::Real=2.0,beta::Real=4.5;
@@ -1572,3 +1613,4 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println(PolygonalChain(res[end,:]))
     =#
 end
+

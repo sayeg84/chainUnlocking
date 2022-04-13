@@ -632,6 +632,13 @@ function PolygonalChainRosetta(linkLengths::Array{<:RealOrDual,1},linkAngles::Ar
     end
 end
 
+function makeLine(P::AbstractChain)::PolygonalChain
+    lengths, ang_vals, dihedrals = internalCoordinates(P)
+    newDiheds = [pi for i in dihedrals]
+    newbangs = [pi for _ in ang_vals]
+    return PolygonalChain(lengths,newbangs,newDiheds)
+end
+
 function flatten(P::AbstractChain)::PolygonalChain
     lengths, ang_vals, dihedrals = internalCoordinates(P)
     newDiheds = [pi for i in dihedrals]

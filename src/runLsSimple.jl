@@ -60,7 +60,7 @@ function runLSimulation(SimulType::GDAlgorithm,parsed_args)
         println(prog)
         #println(current)
         println()
-        minfs_mean[i] = minFunc(finalQ) 
+        minfs_mean[i] = tangentEnergyFrac(finalQ) 
         ts_mean[i] = parsed_args["max_iter"]
     end
     return ls,ts_mean,ts_error,minfs_mean,minfs_error

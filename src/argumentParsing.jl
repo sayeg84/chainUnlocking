@@ -63,9 +63,13 @@ function parse_commandline()
             arg_type = Int
             default = 3 
         "--selection"
-            help = "Maximum degree of mutation. Only for MH simulations"
+            help = "Maximum degree of mutation. Only for Genetic simulations"
             arg_type = String
             default = "RouletteWheelSelection" 
+        "--selection_k"
+            help = "Parameter for selection method, must be smaller than `indep_simuls`. Only for Genetic simulations"
+            arg_type = Int
+            default = 3 
         "--temp_init"
             help = "Initial temperature. Only valid for Simulated Annealing"
             arg_type = Float64

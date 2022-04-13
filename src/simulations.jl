@@ -49,7 +49,7 @@ function runSingle(P,SimulType::Annealing,savename,parsed_args)
 end
 
 function runSingle(P::PolygonalChain,SimulType::Genetic,savename::AbstractString,parsed_args)
-    selection = getfield(Main,Symbol(parsed_args["selection"]))()
+    selection = getfield(Main,Symbol(parsed_args["selection"]))(parsed_args["selection_k"])
     minFunc = getfield(Main,Symbol(parsed_args["minFunc"]))
     initQs,finalQs,fun_vals,ang_idxs,ang_vals,parents = genetic(P,
     minFunc,
