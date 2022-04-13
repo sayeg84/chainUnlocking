@@ -79,7 +79,7 @@ function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<
     #println()
     #display(toArray(lastQ))
     #println()
-    return funcvals
+    return funcvals, newQ
 end
 
 function saveTrajectory(name::AbstractString,Q::AbstractChain,ang_vals::Array{<:Real,1},ang_idxs::Array{<:Real,1})
@@ -174,6 +174,35 @@ function readMetaParams(name::AbstractString)
     return metaParams
 end
 
+function readSingleSimulation(name::AbstractString,simul::GDAlgorithm,minFunc)
+    source,_ = DelimitedFiles.readdlm(string(name,"_trajectory.csv"),',',header=true)
+    funcvals = zeros(size(source,1))
+    for i in 1:size(source,1)
+        Q = PolygonalChain(source[i,:]) 
+        funcvals[i] = minFunc(Q)
+    end
+    return [PolygonalChain(source[end,:]) ],hcat(funcvals),[size(source,1)]
+end
+
+function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc)
+    sources,_ = DelimitedFiles.readdlm(string(name,"_init_Qs.csv"),',',header=true)
+    Qs = [PolygonalChain(sources[i,:]) for i in 1:size(sources,1)]
+    ang_idxs   = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
+    ang_vals   = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',BigFloat)
+    m = length(Qs)
+    funcvals = zeros(size(ang_idxs))
+    accepted_moves = zeros(m)
+    for j in 1:m
+        println("Reading iteration = $j")
+        aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc)
+        funcvals[:,j] = aux
+        accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
+    end
+    sources,_ = DelimitedFiles.readdlm(string(name,"_final_Qs.csv"),',',header=true)
+    Qs = [PolygonalChain(sources[i,:]) for i in 1:m]
+    #display(toArr
+    return  Qs, funcvals, accepted_moves
+end
 
 function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
@@ -184,75 +213,51 @@ function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true
         println("Minimizing function")
         println(metaParams["minFunc"])
     end
+    simul   = getfield(Main,Symbol(metaParams["algorithm"]))()
     minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
-    simuls  = [file for file in readdir(name)]
+    indep_simuls = typeof(simul) <: MHAlgorithm ? metaParams["indep_simuls"] : 1
     # saving `_lastQ.csv` files values
-    simuls = [file for file in simuls if length(file)>7]
-    simuls = [file for file in simuls if file[end-8:end]=="lastQ.csv"]
-    # number of total simulations
-    lt = length(simuls)
-    # filter independent interations
-    simuls = [split(file,"_")[1] for file in simuls]
-    simuls = unique(simuls)
-    simuls = sort(simuls)
-    ts_mean     = zeros(ln)
-    ts_error    = zeros(ln)
-    minfs_mean  = zeros(ln)
-    minfs_error = zeros(ln)
-    tentativeIters = div(lt,ln,RoundUp)
-    if verbose
-        println("Different simulations")
-        println(lt)
-        println("L vals")
-        println(ln)
-        println("Assumed iterations")
-        println(tentativeIters)
-    end
-    ts_table             = zeros(ln,tentativeIters)
-    minfs_table          = zeros(ln,tentativeIters)
-    accepted_moves_table = zeros(ln,tentativeIters)
-
-    for (i,sim) in enumerate(simuls)
-        
-        iterations = [file for file in readdir(name) if split(file,"_")[1]==sim]
-        iterations = [split(file,"_")[2] for file in iterations]
-        iterations = unique(iterations)
-        ts_sim     = zeros(length(iterations))
-        minfs_sim  = zeros(length(iterations))
-
-        for (j,iter) in enumerate(iterations)
-            verbose && println("reading simulation $(sim),$(iter)")
-            lastQ  = readChain(joinpath(name,string(sim,"_",iter,"_lastQ.csv")))
-            ang_idxs = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_ang_idxs.csv")),',',Int16)
-            ang_idxs = reshape(ang_idxs,length(ang_idxs))
-            ts_sim[j]        = length(ang_idxs)
-            ts_table[i,j]    = length(ang_idxs)
-            if burnout < 1
-                fun_vals = DelimitedFiles.readdlm(joinpath(name,string(sim,"_",iter,"_fun_vals")),',',BigFloat)
-                ncut    = Int(ceil(burnout*length(ang_idxs)))
-                minfs_sim[j]     = Statistics.mean(fun_vals[ncut:end])
-                minfs_table[i,j] = Statistics.mean(fun_vals[ncut:end])
-            else
-                minfs_sim[j]     = minFunc(lastQ)
-                minfs_table[i,j] = minFunc(lastQ)
-            end
-            accepted_moves_table[i,j] = length([k for k in ang_idxs if k!=0])
+    ts_table             = zeros(ln,indep_simuls)
+    minfs_table          = zeros(ln,indep_simuls)
+    accepted_moves_table = zeros(ln,indep_simuls)
+    for i in 1:ln
+        println("Reading lval = $i")
+        Qs,funvals,accepted = readSingleSimulation(joinpath(name,string(i)),simul,minFunc)
+        if burnout < 1
+            ncut             = Int(ceil(burnout*length(ang_idxs)))
+            minfs_table[i,:] = Statistics.mean(fun_vals[ncut:end,:],dims=1)
+        else
+            minfs_table[i,:] = funvals[end,:]
         end
-        ts_mean[i] = Statistics.mean(ts_sim)
-        ts_error[i] = Statistics.std(ts_sim)
-        minfs_mean[i] = Statistics.mean(minfs_sim)
-        minfs_error[i] = Statistics.std(minfs_sim)
+        accepted_moves_table[i,:] = accepted
+        ts_table[i,:] = [length(funvals[:,j]) for j in 1:size(funvals,2)]
     end
-    return ls, ts_mean, ts_error, minfs_mean, minfs_error, ts_table, minfs_table,accepted_moves_table
+    return ls, ts_table, minfs_table, accepted_moves_table
 end
 
 
 
-function makeCoordinates(name::AbstractString)
-    Q = readChain(string(name,"init_Q.csv"))
-    ang_vals = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"))
-    ang_vals = reshape(ang_vals,length(ang_vals))
-    ang_idxs = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
-    ang_idxs = reshape(ang_idxs,length(ang_idxs))
-    saveTrajectory(string(name,"trajectory.csv"),Q,ang_vals,ang_idxs)
+function makeCoordinates(name::AbstractString,i::Integer)
+    sources,_ = DelimitedFiles.readdlm(string(name,"_init_Qs.csv"),',',header=true)
+    Qs = [PolygonalChain(sources[i,:]) for i in 1:size(sources,1)]
+    ang_idxs   = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
+    ang_vals   = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',BigFloat)
+    saveTrajectory(string(name,"_",i,"_trajectory.csv"),Qs[i],ang_vals[:,i],ang_idxs[:,i])
  end
+
+ function generateDrawingData(n::Integer)
+    P = parametricCurveChain(polynomialTrefoil,n,-2,2)
+    open("../../chain.csv","w+") do io; 
+        writedlm(io,to2DArray(P),',') 
+    end
+    grad = deriv(tangentEnergyFrac,P)
+    grad = reshape(grad,(3,n))'
+    open("../../normalgrad.csv","w+") do io; 
+        writedlm(io,grad,',') 
+    end
+    gradf = sobolevGradient(P,true)
+    gradf = reshape(gradf[1:3*n],(3,n))'
+    open("../../sobgrad.csv","w+") do io; 
+        writedlm(io,gradf,',') 
+    end
+end

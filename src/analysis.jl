@@ -20,8 +20,12 @@ end
 const parsed_args = parse_commandline()
 
 function main()    
-    ls,ts_mean,ts_error,minfs_mean,minfs_error,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"])
+    ls,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"])
     println("saving results")
+    ts_mean = Statistics.mean(ts_table,dims=2)
+    ts_error = Statistics.std(ts_table,dims=2)
+    minfs_mean = Statistics.mean(minfs_table,dims=2)
+    minfs_error = Statistics.std(minfs_table,dims=2)
     open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
         write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
