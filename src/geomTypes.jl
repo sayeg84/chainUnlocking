@@ -781,41 +781,52 @@ function rotate!(P::AbstractChain,ang_idx::Integer,alpha::Real)
     end
 end
 
-########################################################
+###############################################################################
 
 # Important polygonal chains
 
-########################################################
+###############################################################################
 
-function circle(t::Real)
+function circleCurve(t::Real)
     return (cos(t),sin(t),0)
 end
 
-function treefoil(t::Real)
+# taken from https://mathcurve.com/courbes3d.gb/noeuds/noeudenhuit.shtml
+
+function trefoilCurve(t::Real)
     return (cos(t)+2*cos(2*t),sin(t)-2*sin(2*t),2*sin(3t))
 end
 
-function eightKnot(t::Real)
+function eightKnotCurve(t::Real)
     return (3*cos(t)+5*cos(3*t),3*sin(t)+5*sin(3*t),sin(5*t/2)*sin(3*t) + sin(4*t) - sin(6*t))
 end
 
-function eightKnotTight(t::Real)
-    return (sin(t) + t/10, sin(t)*cos(t/2), sin(2*t)*sin(t/2)/4)
+function eightKnotTightCurve(t::Real)
+    return (sin(t + t/10), sin(t)*cos(t/2), sin(2*t)*sin(t/2)/4)
 end
 
-function polynomialTrefoil(t::Real)
+# taken from https://home.adelphi.edu/~stemkoski/knotgallery/
+
+function polynomialTrefoilCurve(t::Real)
     return (t^3 - 3*t, t^4 - 4*t^2, t^5/5 - 2*t)
 end
 
-function polynomialEight(t::Real)
-    return (2/5*t*(t^2 - 7)*(t^2 - 10), t^4 - 13*t^2, 1/10*(t^7 - 31*t^5 + 164*t^3 + 560*t))
+function polynomialEightCurve(t::Real)
+    return (2/5*t*(t^2 - 7)*(t^2 - 10), t^4 - 13*t^2, 1/10*t*(t^2-4)*(t^2-9)*(t^2-12))
 end
 
-function parametricCurveChain(curv::Function,n::Integer,a::Real=0,b::Real=pi)
+function curveToChain(curv::Function,n::Integer,a::Real=0,b::Real=pi)
     angs = LinRange(a,b,n)
     points = [Point{Float64}(curv(ang)...) for ang in angs]
     return PolygonalChain(points)
 end
+
+eight(n::Real) = curveToChain(eightKnotCurve,Int(n),pi/4,7/4*pi);
+eightTight(n::Real) = curveToChain(eightKnotTightCurve,Int(n),-pi/4,3*pi);
+polynomialEight(n::Real) = curveToChain(polynomialEightCurve,Int(n),-3.7,3.7);
+trefoil(n::Real) = curveToChain(trefoilCurve,Int(n),pi/16,31/16*pi);
+polynomialTrefoil(n::Real) = curveToChain(polynomialTrefoilCurve,Int(n),-2.1,2.1);
+
 
 function stair(n::Integer)::PolygonalChain
     #vertices = Array{Point,1}(undef,n+1)

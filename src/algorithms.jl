@@ -511,7 +511,10 @@ function select(t::TournamentSelection,fvals::Array{<:Real,1})
     return vals
 end
 
-struct RouletteWheelSelection <: SelectionMethod end
+struct RouletteWheelSelection <: SelectionMethod
+    # initializer needs parameter to share interface with other SelectionMethod objects 
+    RouletteWheelSelection(k::Integer=3) = new()
+end
 
 function normalize(fvals::Array{<:Real,1})
     fvals = [Float64(maximum(fvals) - val) for val in fvals]
@@ -1587,7 +1590,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     end
     #P = PolygonalChain(6)
     #P = PolygonalChain([Point(BigFloat,p) for p in P.vertices])
-    #P = parametricCurveChain(treefoil,30,0,deg2rad(315))
+    #P = curveToChain(trefoilCurve,30,0,deg2rad(315))
     #ls,bas,das = internalCoordinates(P)
     #=
     mov = movement(P,true,ls,bas,das,debug=true)

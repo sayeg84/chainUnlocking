@@ -240,15 +240,15 @@ end
 
 
 function makeCoordinates(name::AbstractString,i::Integer)
-    sources,_ = DelimitedFiles.readdlm(string(name,"_init_Qs.csv"),',',header=true)
+    sources,_ = DelimitedFiles.readdlm(string(name,"init_Qs.csv"),',',header=true)
     Qs = [PolygonalChain(sources[i,:]) for i in 1:size(sources,1)]
-    ang_idxs   = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
-    ang_vals   = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',BigFloat)
+    ang_idxs   = DelimitedFiles.readdlm(string(name,"ang_idxs.csv"),',',Int16)
+    ang_vals   = DelimitedFiles.readdlm(string(name,"ang_vals.csv"),',',BigFloat)
     saveTrajectory(string(name,"_",i,"_trajectory.csv"),Qs[i],ang_vals[:,i],ang_idxs[:,i])
  end
 
  function generateDrawingData(n::Integer)
-    P = parametricCurveChain(polynomialTrefoil,n,-2,2)
+    P = curveToChain(polynomialTrefoilCurve,n,-2,2)
     open("../../chain.csv","w+") do io; 
         writedlm(io,to2DArray(P),',') 
     end
