@@ -11,7 +11,7 @@ function parse_commandline()
         "--minFunc"
             help = "Minimizing function"
             arg_type = String
-            default = "distToFlat"
+            default = "tangentEnergyFrac"
         "--chain"
             help = "Chain to simulate"
             arg_type = String

@@ -222,7 +222,9 @@ function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true
     accepted_moves_table = zeros(ln,indep_simuls)
     for i in 1:ln
         println("Reading lval = $i")
-        Qs,funvals,accepted = readSingleSimulation(joinpath(name,string(i)),simul,minFunc)
+        n1zeros = Int(ceil(log10(ln+1)))
+        n1 = lpad(i,n1zeros,'0')
+        Qs,funvals,accepted = readSingleSimulation(joinpath(name,n1),simul,minFunc)
         if burnout < 1
             ncut             = Int(ceil(burnout*length(ang_idxs)))
             minfs_table[i,:] = Statistics.mean(fun_vals[ncut:end,:],dims=1)
