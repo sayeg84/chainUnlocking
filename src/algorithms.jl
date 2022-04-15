@@ -429,9 +429,10 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
     while  c <= max_iter && fval > tolerance && temp > temp_f
         for i in 1:iter_per_temp
             for j in 1:population
-                alphas = [rand(dist) for _ in 1:mut_k]
+                mut_length = rand(1:mut_k)
+                alphas = [rand(dist) for _ in 1:mut_length]
                 (internal) && (alphas = 0.5*alphas)
-                mov_ang_idxs = internal ? Random.randperm(2*nq-3)[1:mut_k] : Random.randperm(nq-2)[1:mut_k]
+                mov_ang_idxs = internal ? Random.randperm(2*nq-3)[1:mut_length] : Random.randperm(nq-2)[1:mut_length]
                 if debug
                     println("c = $c")
                     println("c2 = $(c2)")
@@ -554,11 +555,11 @@ function genetic(Q::PolygonalChain,
         auxQ = makeLine(Q)
         minFunc = Q -> distToLine(Q,auxQ)
     end
-    lr = 1
     ang_idxs = zeros(Int16,max_iter*mut_k,population)
     ang_vals = zeros(ftype(Q),max_iter*mut_k,population)
     fun_vals = zeros(ftype(Q),max_iter+1,population)
     parents = zeros(Int8,max_iter,population)
+    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
     nq = length(Q)
     Qs = [perturbe(Q) for _ in 1:population]
     initQs = copy(Qs)
@@ -566,7 +567,7 @@ function genetic(Q::PolygonalChain,
     c = 1
     while c <= max_iter && maximum(fun_vals[c,:]) > tolerance 
         # mutation
-        dist = Distributions.TruncatedNormal(0,lr*pi/8,alphamin,alphamax)
+        
         for j in 1:population
             mut_length = rand(1:mut_k)
             alphas = [rand(dist) for _ in 1:mut_length]
@@ -614,7 +615,6 @@ function genetic(Q::PolygonalChain,
         ang_vals[1:(c*mut_k),:] = ang_vals[1:(c*mut_k),parents[c,:]]
         fun_vals[1:(c+1),:]         = fun_vals[1:(c+1),parents[c,:]]
         c += 1
-        lr = 0.99*lr
         debug && println("\n\n")
     end
     c = c > max_iter ? max_iter : c

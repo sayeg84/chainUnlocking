@@ -821,10 +821,10 @@ function curveToChain(curv::Function,n::Integer,a::Real=0,b::Real=pi)
     return PolygonalChain(points)
 end
 
-eight(n::Real) = curveToChain(eightKnotCurve,Int(n),pi/4,7/4*pi);
-eightTight(n::Real) = curveToChain(eightKnotTightCurve,Int(n),-pi/4,3*pi);
-polynomialEight(n::Real) = curveToChain(polynomialEightCurve,Int(n),-3.7,3.7);
-trefoil(n::Real) = curveToChain(trefoilCurve,Int(n),pi/16,31/16*pi);
+eight(n::Real)             = curveToChain(eightKnotCurve,Int(n),pi/4,7/4*pi);
+eightTight(n::Real)        = curveToChain(eightKnotTightCurve,Int(n),-pi/4,3*pi);
+polynomialEight(n::Real)   = curveToChain(polynomialEightCurve,Int(n),-3.7,3.7);
+trefoil(n::Real)           = curveToChain(trefoilCurve,Int(n),pi/16,31/16*pi);
 polynomialTrefoil(n::Real) = curveToChain(polynomialTrefoilCurve,Int(n),-2.1,2.1);
 
 
