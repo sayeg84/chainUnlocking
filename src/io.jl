@@ -8,7 +8,7 @@ const base_vars = ["algorithm","minFunc","chain","indep_simuls",
 
 function saveMetaParams(name::AbstractString,simul::MHAlgorithm,parsed_args)
     open(joinpath(name,"metaParams.csv"),"w+") do io
-        sim_vars = ["max_angle","mut_k","selection",
+        sim_vars = ["max_angle","mut_k","selection","selection_k",
         "temp_init","temp_f","iter_per_temp","temp_program"]
         for var in vcat(base_vars,sim_vars)
             str = string(var,",",parsed_args[var],"\n") 
@@ -246,6 +246,17 @@ function makeCoordinates(name::AbstractString,i::Integer)
     ang_vals   = DelimitedFiles.readdlm(string(name,"ang_vals.csv"),',',BigFloat)
     saveTrajectory(string(name,"_",i,"_trajectory.csv"),Qs[i],ang_vals[:,i],ang_idxs[:,i])
  end
+
+ function makeChain(name::AbstractString,param::Real=0.0)
+    if isfile(name)
+        traj,_ = DelimitedFiles.readdlm(name,',',Float64,header=true)
+        return PolygonalChain(traj[end,:])
+    else
+        chainFunc = getfield(Main,Symbol(name))
+        return chainFunc(param)
+    end
+end
+
 
  function generateDrawingData(n::Integer)
     P = curveToChain(polynomialTrefoilCurve,n,-2,2)

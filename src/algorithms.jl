@@ -613,7 +613,7 @@ function genetic(Q::PolygonalChain,
         Qs = Qs[parents[c,:]]
         ang_idxs[1:(c*mut_k),:] = ang_idxs[1:(c*mut_k),parents[c,:]]
         ang_vals[1:(c*mut_k),:] = ang_vals[1:(c*mut_k),parents[c,:]]
-        fun_vals[1:(c+1),:]         = fun_vals[1:(c+1),parents[c,:]]
+        fun_vals[1:(c+1),:]     = fun_vals[1:(c+1),parents[c,:]]
         c += 1
         debug && println("\n\n")
     end

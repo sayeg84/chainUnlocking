@@ -15,10 +15,6 @@ let w = getfield(Main,Symbol(parsed_args["minFunc"]))
     @sync @everywhere const minFunc = $w
 end
 
-let u = getfield(Main,Symbol(parsed_args["chain"]))
-    @sync @everywhere const chainFunc = $u
-end
-
 function runLSimulationDistributed(SimulType::MHAlgorithm,parsed_args)
     if parsed_args["log_l"]
         exps = LinRange(log10(parsed_args["lmin"]),log10(parsed_args["lmax"]),parsed_args["lvals"])
@@ -34,7 +30,7 @@ function runLSimulationDistributed(SimulType::MHAlgorithm,parsed_args)
     @sync @distributed for i in 1:n
         n1zeros = Int(ceil(log10(n+1)))
         n1 = lpad(i,n1zeros,'0')
-        P = chainFunc(ls[i])
+        P = makeChain(parsed_args["chain"],ls[i])
         initQs,finalQs,fun_vals,_ = runSingle(P,SimulType,joinpath(parsed_args["path"],string(n1,"_",)),parsed_args)
         per = round((i-1)*100/n; digits=2)
         prog = "Progress: $(per) % "
@@ -67,7 +63,7 @@ function runLSimulationDistributed(SimulType::GDAlgorithm,parsed_args)
     @sync @distributed for i in 1:n
         n1zeros = Int(ceil(log10(n+1)))
         n1 = lpad(i,n1zeros,'0')
-        P = chainFunc(ls[i])
+        P = makeChain(parsed_args["chain"],ls[i])
         initQ,finalQ = runSingle(P,SimulType,joinpath(parsed_args["path"],string(n1,"_",)),parsed_args)
         per = round((i-1)*100/n; digits=2)
         prog = "Progress: $(per) % "

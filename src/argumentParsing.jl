@@ -13,7 +13,7 @@ function parse_commandline()
             arg_type = String
             default = "tangentEnergyFrac"
         "--chain"
-            help = "Chain to simulate"
+            help = "Chain to simulate. Must be function of one real parameter that returns chain or path to csv file with coordinates. It will take last coordinates as chain."
             arg_type = String
             default = "knittingNeedle"
         "--path"
@@ -94,6 +94,9 @@ function parse_commandline()
             help = "Number of new nodes on each link represented as ints separated by commas (\"2,3,4\"). Only valid for CurvifiedSobolev simulation"
             arg_type = String
             default = ""
+        "--retake_curve"
+            help = "Flag to indicate that curve is already helixified and doesn't need to be done again. Useful for running curvified simulations starting with an already existing chain"
+            action = :store_true
         "--debug"
             help= "Flag passed to methods to print debug info on screen"
             action = :store_true

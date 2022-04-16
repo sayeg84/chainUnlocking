@@ -96,16 +96,21 @@ function runSingle(P::PolygonalChain,SimulType::Sobolev,savename::AbstractString
 end
 
 function runSingle(P::PolygonalChain,SimulType::CurvifiedSobolev,savename::AbstractString,parsed_args)
-    if !isempty(parsed_args["ndens"])
+    if !isempty(parsed_args["ndens"]) && !parsed_args["retake_curve"]
         ndens = [parse(Int64,s) for s in split(parsed_args["ndens"],",")]
         if length(ndens) != length(P)
             error("ndens $(parsed_args["ndens"]) doesn't have $(length(P)) integers")
+        end
+    elseif parsed_args["retake_curve"]
+        ndens = [parse(Int64,s) for s in split(parsed_args["ndens"],",")]
+        if sum(ndens) + length(ndens) != length(P)
+            error("ndens $(parsed_args["ndens"]) doesn't correspond to retaken curve with $(length(P))")
         end
     else
         error("Argument `ndens` is required")
     end
     P = PolygonalChain([Point(Float64,p) for p in P.vertices])
-    Q = helixify(P,ndens,r=5e-3)
+    Q = parsed_args["retake_curve"] ? P : helixify(P,ndens,r=5e-3)
     trajectory = sobolevGradientDescent(Q,ndens,
     parsed_args["max_iter"],
     tau=parsed_args["time_step"],
