@@ -27,12 +27,14 @@ function runLSimulationDistributed(SimulType::MHAlgorithm,parsed_args)
     minfs_error = SharedArray(zeros(n))
     ts_mean  = SharedArray(zeros(n))
     ts_error = SharedArray(zeros(n))
+    finished = SharedArray(zeros(n))
     @sync @distributed for i in 1:n
         n1zeros = Int(ceil(log10(n+1)))
         n1 = lpad(i,n1zeros,'0')
         P = makeChain(parsed_args["chain"],ls[i])
         initQs,finalQs,fun_vals,_ = runSingle(P,SimulType,joinpath(parsed_args["path"],string(n1,"_",)),parsed_args)
-        per = round((i-1)*100/n; digits=2)
+        finished[i] = 1
+        per = round(sum(finished)*100/n; digits=2)
         prog = "Progress: $(per) % "
         println()
         println(prog)
@@ -60,12 +62,14 @@ function runLSimulationDistributed(SimulType::GDAlgorithm,parsed_args)
     minfs_error = SharedArray(zeros(n))
     ts_mean  = SharedArray(zeros(n))
     ts_error = SharedArray(zeros(n))
+    finished = SharedArray(zeros(n))
     @sync @distributed for i in 1:n
         n1zeros = Int(ceil(log10(n+1)))
         n1 = lpad(i,n1zeros,'0')
         P = makeChain(parsed_args["chain"],ls[i])
         initQ,finalQ = runSingle(P,SimulType,joinpath(parsed_args["path"],string(n1,"_",)),parsed_args)
-        per = round((i-1)*100/n; digits=2)
+        finished[i] = 1
+        per = round(sum(finished)*100/n; digits=2)
         prog = "Progress: $(per) % "
         println()
         println(prog)
@@ -81,14 +85,15 @@ function main()
     if !isdir(parsed_args["path"])
         mkdir(parsed_args["path"])
     end
-    ls,ts_mean,ts_error,minfs_mean,minfs_error = runLSimulationDistributed(simulation,parsed_args)
+    println("Starting")
     saveMetaParams(parsed_args["path"],simulation,parsed_args)
+    ls,ts_mean,ts_error,minfs_mean,minfs_error = runLSimulationDistributed(simulation,parsed_args)
     open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
         write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
         DelimitedFiles.writedlm(io,table,',')
     end
-    println("Progress: 100 % ")
+    println("Finished. Saving joint results")
     # saving info
     saveLtable(parsed_args["path"],ls)
     # making plots
