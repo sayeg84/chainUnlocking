@@ -274,6 +274,35 @@ end
 
 
 """
+planeRotationXY(u::Point)::Matrix
+
+returns the matrix representing a rotation of the system so that vector `u` becomes colineal with the z axis
+"""
+function planeRotationXY(u::Point)::Matrix
+    if isapprox(distance(ez,u),0,atol=1e-15)
+        return Matrix(1,0,0,0,1,0,0,0,1)
+    elseif isapprox(distance(-1*ez,u),0,atol=1e-15)
+        return Matrix(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0)
+    else
+        ang = iangle(u,ez)
+        u = unitVector(cross(u,ez))
+        return rotation(ang,u)
+    end
+end
+
+function planeRotationYZ(u::Point)::Matrix
+    if isapprox(distance(ex,u),0,atol=1e-15)
+        return Matrix(1,0,0,0,1,0,0,0,1)
+    elseif isapprox(distance(-1*ex,u),0,atol=1e-15)
+        return Matrix(-1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0)
+    else
+        theta = iangle(u,ex)
+        u = unitVector(cross(u,ex))
+        return rotation(theta,u)
+    end
+end
+
+"""
 rotation(ang::RealOrDual,u::Point)::Matrix
 
 Computes the rotation matrix around unit vector `u` for an angle `ang` using the explicit formula in https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
@@ -644,6 +673,48 @@ function flatten(P::AbstractChain)::PolygonalChain
     newDiheds = [pi for i in dihedrals]
     return PolygonalChain(lengths,ang_vals,newDiheds)
 end
+
+
+function moveBeforeDihedral(P::PolygonalChain,i::Integer)::PolygonalChain
+    newP = copy(P)
+    n = length(P)
+    if 1 <= i <= n-2
+        u = unitVector(newP[i+2]-newP[i+1])
+        mat = planeRotationXY(u)
+        pivot = newP[i+2]
+        for j in 1:n+1
+            newP[j] = mat*(newP[j]-pivot)
+        end
+        return newP
+    else
+        error("i is not in range of dihedrals")
+    end
+end
+
+function moveBeforeInternal(P::PolygonalChain,i::Integer)
+    newP = copy(P)
+    n = length(P)
+    if 1 <= i <= n-1
+        u = unitVector(newP[i]-newP[i+1])
+        mat1 = planeRotationYZ(u)
+        pivot = newP[i+1]
+        for j in 1:n+1
+            newP[j] = mat1*(newP[j]-pivot)
+        end
+        # second rotation
+        v = unitVector(newP[i+2])  # newP[i+1] = e0
+        n1 = cross(v,ex)
+        theta = atan(newP[i+2].y,newP[i+2].z)-pi/2
+        mat2 = xrotation(theta)
+        for j in 1:n+1
+            newP[j] = mat2*newP[j]
+        end
+        return newP
+    else
+        error("i is not in range of internals")
+    end
+end
+
 
 function dihedralRotate(P::PolygonalChain,i::Integer,phi::RealOrDual)::PolygonalChain
     n = length(P)

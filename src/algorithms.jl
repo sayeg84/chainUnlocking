@@ -567,7 +567,6 @@ function genetic(Q::PolygonalChain,
     c = 1
     while c <= max_iter && maximum(fun_vals[c,:]) > tolerance 
         # mutation
-        
         for j in 1:population
             mut_length = rand(1:mut_k)
             alphas = [rand(dist) for _ in 1:mut_length]
@@ -593,9 +592,9 @@ function genetic(Q::PolygonalChain,
                 len = length(alphas)
                 ang_idxs[li:li+len-1,j] = mov_ang_idxs
                 ang_vals[li:li+len-1,j] = alphas
-                fun_vals[c+1,j]           = minFunc(newQ)
+                fun_vals[c+1,j]         = minFunc(newQ)
             else
-                fun_vals[c+1,j]           = fun_vals[c,j]
+                fun_vals[c+1,j]         = fun_vals[c,j]
             end
         end
         # selection
@@ -611,6 +610,7 @@ function genetic(Q::PolygonalChain,
         end
         # changing indexes
         Qs = Qs[parents[c,:]]
+        initQs = initQs[parents[c,:]]
         ang_idxs[1:(c*mut_k),:] = ang_idxs[1:(c*mut_k),parents[c,:]]
         ang_vals[1:(c*mut_k),:] = ang_vals[1:(c*mut_k),parents[c,:]]
         fun_vals[1:(c+1),:]     = fun_vals[1:(c+1),parents[c,:]]

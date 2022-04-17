@@ -4,7 +4,7 @@ using DelimitedFiles
 using Statistics
 
 const base_vars = ["algorithm","minFunc","chain","indep_simuls",
-"processes","max_iter","tolerance"]
+"processes","max_iter","tolerance","internal"]
 
 function saveMetaParams(name::AbstractString,simul::MHAlgorithm,parsed_args)
     open(joinpath(name,"metaParams.csv"),"w+") do io
