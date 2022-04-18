@@ -197,7 +197,6 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc)
     for j in 1:m
         println("Reading iteration = $j")
         aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc)
-        println("sali")
         funcvals[:,j] = aux
         accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
     end

@@ -2,7 +2,8 @@ include("argumentParsing.jl")
 # importing `io` and other settings have to be done after getting the 
 # args due to variable number of processes.
 const parsed_args = parse_commandline()
-using Distributed, SharedArrays
+using Distributed
+using SharedArrays
 Distributed.addprocs(parsed_args["processes"])
 
 @everywhere include("io.jl")

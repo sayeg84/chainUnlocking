@@ -1,6 +1,6 @@
 include("io.jl")
 
-using Plots, DelimitedFiles, ArgParse
+using Plots, ArgParse
 
 function parse_commandline()
     s = ArgParseSettings()
