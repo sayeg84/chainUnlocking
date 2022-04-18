@@ -65,15 +65,17 @@ function saveChains(name::AbstractString,Ps::Array{<:AbstractChain,1})
     end
 end
 
-function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<:Real,1},minFunc)
+function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<:Real,1},minFunc::H) where {H}
     newQ = copy(Q)
     funcvals = zeros(ftype(Q),length(ang_vals))
     funcvals[1] = minFunc(newQ)
     for i in 1:(length(ang_vals)-1)
         if ang_idxs[i]!= 0
             rotate!(newQ,ang_idxs[i],ang_vals[i])
+            funcvals[i+1] = minFunc(newQ)
+        else
+            funcvals[i+1] = funcvals[i]
         end
-        funcvals[i+1] = minFunc(newQ)
     end
     #display(toArray(newQ))
     #println()
@@ -195,6 +197,7 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc)
     for j in 1:m
         println("Reading iteration = $j")
         aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc)
+        println("sali")
         funcvals[:,j] = aux
         accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
     end
@@ -226,8 +229,8 @@ function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true
         n1 = lpad(i,n1zeros,'0')
         Qs,funvals,accepted = readSingleSimulation(joinpath(name,n1),simul,minFunc)
         if burnout < 1
-            ncut             = Int(ceil(burnout*length(ang_idxs)))
-            minfs_table[i,:] = Statistics.mean(fun_vals[ncut:end,:],dims=1)
+            ncut             = Int(ceil(burnout*length(funvals)))
+            minfs_table[i,:] = Statistics.mean(funvals[ncut:end,:],dims=1)
         else
             minfs_table[i,:] = funvals[end,:]
         end
