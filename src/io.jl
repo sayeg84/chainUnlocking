@@ -84,6 +84,31 @@ function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<
     return funcvals, newQ
 end
 
+function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<:Real,1},minFunc::H,ncut::Integer) where {H}
+    newQ = copy(Q)
+    funcvals = zeros(ftype(Q),length(ang_vals))
+    funcvals[1] = minFunc(newQ)
+    for i in 1:ncut-1
+        if ang_idxs[i]!= 0
+            rotate!(newQ,ang_idxs[i],ang_vals[i])
+        end
+    end
+    for i in ncut:(length(ang_vals)-1)
+        if ang_idxs[i]!= 0
+            rotate!(newQ,ang_idxs[i],ang_vals[i])
+            funcvals[i+1] = minFunc(newQ)
+        else
+            funcvals[i+1] = funcvals[i]
+        end
+    end
+    #display(toArray(newQ))
+    #println()
+    #display(toArray(lastQ))
+    #println()
+    return funcvals, newQ
+end
+
+
 function saveTrajectory(name::AbstractString,Q::AbstractChain,ang_vals::Array{<:Real,1},ang_idxs::Array{<:Real,1})
     ns = length(Q)+1
     nzeros = Int(ceil(log10(ns+1)))
@@ -176,17 +201,19 @@ function readMetaParams(name::AbstractString)
     return metaParams
 end
 
-function readSingleSimulation(name::AbstractString,simul::GDAlgorithm,minFunc)
+function readSingleSimulation(name::AbstractString,simul::GDAlgorithm,minFunc,burnout::Float64=1.0)
     source,_ = DelimitedFiles.readdlm(string(name,"_trajectory.csv"),',',header=true)
-    funcvals = zeros(size(source,1))
-    for i in 1:size(source,1)
+    n = size(source,1)
+    funcvals = zeros(n)
+    ncut =  Int(ceil(burnout*n))
+    for i in ncut:n
         Q = PolygonalChain(source[i,:]) 
         funcvals[i] = minFunc(Q)
     end
-    return [PolygonalChain(source[end,:]) ],hcat(funcvals),[size(source,1)]
+    return [PolygonalChain(source[end,:])],hcat(funcvals[ncut:end]),[size(source,1)], [n]
 end
 
-function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc)
+function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,burnout::Float64=1.0)
     sources,_ = DelimitedFiles.readdlm(string(name,"_init_Qs.csv"),',',header=true)
     Qs = [PolygonalChain(sources[i,:]) for i in 1:size(sources,1)]
     ang_idxs   = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
@@ -194,17 +221,22 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc)
     m = length(Qs)
     funcvals = zeros(size(ang_idxs))
     accepted_moves = zeros(m)
+    n =  size(sources,1) 
+    ncut =  Int(ceil(burnout*n)) 
     for j in 1:m
         println("Reading iteration = $j")
-        aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc)
+        aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc,ncut)
         funcvals[:,j] = aux
         accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
+        
     end
     sources,_ = DelimitedFiles.readdlm(string(name,"_final_Qs.csv"),',',header=true)
     Qs = [PolygonalChain(sources[i,:]) for i in 1:m]
     #display(toArr
-    return  Qs, funcvals, accepted_moves
+    return  Qs, funcvals, accepted_moves, [n for j in 1:m]
 end
+
+
 
 function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
@@ -226,15 +258,10 @@ function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true
         println("Reading lval = $i")
         n1zeros = Int(ceil(log10(ln+1)))
         n1 = lpad(i,n1zeros,'0')
-        Qs,funvals,accepted = readSingleSimulation(joinpath(name,n1),simul,minFunc)
-        if burnout < 1
-            ncut             = Int(ceil(burnout*length(funvals)))
-            minfs_table[i,:] = Statistics.mean(funvals[ncut:end,:],dims=1)
-        else
-            minfs_table[i,:] = funvals[end,:]
-        end
+        Qs,funvals,accepted,ts = readSingleSimulation(joinpath(name,n1),simul,minFunc,burnout)
+        minfs_table[i,:] = Statistics.mean(funvals,dims=1)
         accepted_moves_table[i,:] = accepted
-        ts_table[i,:] = [length(funvals[:,j]) for j in 1:size(funvals,2)]
+        ts_table[i,:] = ts
     end
     return ls, ts_table, minfs_table, accepted_moves_table
 end

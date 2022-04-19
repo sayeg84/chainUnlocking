@@ -49,15 +49,10 @@ function readLSimulationPar(name::AbstractString, burnout::Real; verbose::Bool=t
         println("Reading lval = $i")
         n1zeros = Int(ceil(log10(ln+1)))
         n1 = lpad(i,n1zeros,'0')
-        Qs,funvals,accepted = readSingleSimulation(joinpath(name,n1),simul,minFunc)
-        if burnout < 1
-            ncut             = Int(ceil(burnout*length(funvals)))
-            minfs_table[i,:] = Statistics.mean(funvals[ncut:end,:],dims=1)
-        else
-            minfs_table[i,:] = funvals[end,:]
-        end
+        Qs,funvals,accepted,ts = readSingleSimulation(joinpath(name,n1),simul,minFunc,burnout)
+        minfs_table[i,:] = Statistics.mean(funvals,dims=1)
         accepted_moves_table[i,:] = accepted
-        ts_table[i,:] = [length(funvals[:,j]) for j in 1:size(funvals,2)]
+        ts_table[i,:] = ts
     end
     return ls, ts_table, minfs_table, accepted_moves_table
 end
