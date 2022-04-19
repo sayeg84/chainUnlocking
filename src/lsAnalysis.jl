@@ -13,6 +13,9 @@ function parse_commandline()
             help = "Fraction of burnout values. Value of 1 saves only the last one"
             arg_type = Float64
             default  = 1.0
+        "--calculate"
+            help = "Flag to indicate if energies must be recalculated or should be read from file. Recalculation is significantly slower"
+            action = :store_true
     end
     return parse_args(s)
 end
@@ -20,7 +23,7 @@ end
 const parsed_args = parse_commandline()
 
 function main()    
-    ls,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"])
+    ls,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"],parsed_args["calculate"])
     println("saving results")
     ts_mean = Statistics.mean(ts_table,dims=2)
     ts_error = Statistics.std(ts_table,dims=2)

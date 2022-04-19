@@ -201,7 +201,7 @@ function readMetaParams(name::AbstractString)
     return metaParams
 end
 
-function readSingleSimulation(name::AbstractString,simul::GDAlgorithm,minFunc,burnout::Float64=1.0)
+function readSingleSimulation(name::AbstractString,simul::GDAlgorithm,minFunc,burnout::Float64=1.0,calculate::Bool=true)
     source,_ = DelimitedFiles.readdlm(string(name,"_trajectory.csv"),',',header=true)
     n = size(source,1)
     funcvals = zeros(n)
@@ -213,7 +213,7 @@ function readSingleSimulation(name::AbstractString,simul::GDAlgorithm,minFunc,bu
     return [PolygonalChain(source[end,:])],hcat(funcvals[ncut:end]),[size(source,1)], [n]
 end
 
-function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,burnout::Float64=1.0)
+function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,burnout::Float64=1.0,calculate::Bool=true)
     sources,_ = DelimitedFiles.readdlm(string(name,"_init_Qs.csv"),',',header=true)
     Qs = [PolygonalChain(sources[i,:]) for i in 1:size(sources,1)]
     ang_idxs   = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
@@ -221,14 +221,25 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,bu
     m = length(Qs)
     funcvals = zeros(size(ang_idxs))
     accepted_moves = zeros(m)
-    n =  size(sources,1) 
+    n =  size(ang_idxs,1) 
     ncut =  Int(ceil(burnout*n)) 
-    for j in 1:m
-        println("Reading iteration = $j")
-        aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc,ncut)
-        funcvals[:,j] = aux
-        accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
-        
+    if calculate
+        for j in 1:m
+            println("Reading iteration = $j")
+            aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc,ncut)
+            funcvals[:,j] = aux
+            funcvals = funcvals[ncut:end,:]
+            accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
+        end
+    else
+        aux = DelimitedFiles.readdlm(string(name,"_fun_vals.csv"),',',BigFloat)
+        newncut = Int(ceil(burnout*size(aux,1))) 
+        values = size(aux,1)-newncut
+        funcvals[end-values:end,:] = aux[newncut:end,:]
+        funcvals = funcvals[end-values:end,:]
+        for j in 1:m
+            accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
+        end
     end
     sources,_ = DelimitedFiles.readdlm(string(name,"_final_Qs.csv"),',',header=true)
     Qs = [PolygonalChain(sources[i,:]) for i in 1:m]
@@ -238,7 +249,7 @@ end
 
 
 
-function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true)
+function readLSimulation(name::AbstractString, burnout::Real,calculate::Bool; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
@@ -258,7 +269,7 @@ function readLSimulation(name::AbstractString, burnout::Real; verbose::Bool=true
         println("Reading lval = $i")
         n1zeros = Int(ceil(log10(ln+1)))
         n1 = lpad(i,n1zeros,'0')
-        Qs,funvals,accepted,ts = readSingleSimulation(joinpath(name,n1),simul,minFunc,burnout)
+        Qs,funvals,accepted,ts = readSingleSimulation(joinpath(name,n1),simul,minFunc,burnout,calculate)
         minfs_table[i,:] = Statistics.mean(funvals,dims=1)
         accepted_moves_table[i,:] = accepted
         ts_table[i,:] = ts
