@@ -38,15 +38,15 @@ function readLSimulationPar(name::AbstractString, burnout::Real,minFuncStr::Abst
     ls = reshape(ls,length(ls))
     ln = length(ls)
     metaParams = readMetaParams(name)
-    if verbose
-        println("Minimizing function")
-        println(metaParams["minFunc"])
-    end
     simul   = getfield(Main,Symbol(metaParams["algorithm"]))()
     if isempty(minFuncStr)
         minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
     else
         minFunc = getfield(Main,Symbol(minFuncStr))
+    end
+    if verbose
+        println("Minimizing function")
+        println(string(minFunc))
     end
     indep_simuls = typeof(simul) <: MHAlgorithm ? metaParams["indep_simuls"] : 1
     # saving `_lastQ.csv` files values

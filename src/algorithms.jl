@@ -26,6 +26,11 @@ function squaredMaxSpan(Q::AbstractChain)
     return -dot(v,v)
 end
 
+function squaredMaxSpanNormed(Q::AbstractChain)
+    v = Q[1] - Q[end]
+    return -dot(v,v)/totalLength(Q)
+end
+
 function fourKnotSpan(Q::AbstractChain)
     v = Q[2] - Q[end-1]
     return -dot(v,v)
@@ -110,11 +115,14 @@ function tangentEnergy(Q::AbstractChain;alpha::Real=3,beta::Real=6)
     return sum
 end
 
-
-
 function tangentEnergyFrac(Q::AbstractChain)
     return tangentEnergy(Q,alpha=2,beta=4.5)
 end
+
+function tangentEnergyFracNormed(Q::AbstractChain)
+    return tangentEnergyFrac(Q)/totalLength(Q)
+end
+
 
 function uniformAngle(angmin::Real,angmax::Real)
     return rand()*(angmax-angmin) + angmin
@@ -386,6 +394,7 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
         end
         c2 += 1
         temp = updateTemp(tempProgram,temp,c2)
+        println(temp)
     end
     c = c > max_iter ? max_iter : c
     return initQs,Qs,fun_vals[1:c+1,:],ang_vals[1:c,:],ang_idxs[1:c,:]
@@ -454,6 +463,7 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
                         println("# no inter")
                         println("fval = $fval")
                         println("dnew = $(dnew)")
+                        println("temp = $(temp)")
                         println("p = $p")
                         println("r = $r")
                     end

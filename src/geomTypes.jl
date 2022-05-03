@@ -565,7 +565,9 @@ function overlapedRmsd(P::AbstractChain,Q::AbstractChain)
 end
 
 
-## Geometrical functions
+# Internal coordinates functions
+
+
 
 function linkLengths(P::AbstractChain)
     n = length(P)
@@ -576,7 +578,16 @@ function linkLengths(P::AbstractChain)
     return lengths
 end
 
-function linkAngles(P::AbstractChain)
+function totalLength(P::AbstractChain)
+    n = length(P)
+    total_l = 0
+    for i in 1:n
+        total_l += distance(P[i],P[i+1])
+    end
+    return total_l
+end
+
+function internalAngles(P::AbstractChain)
     n = length(P)
     angles = zeros(ftype(P),n-1)
     for i in 1:n-1
