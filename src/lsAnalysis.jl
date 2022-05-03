@@ -16,6 +16,10 @@ function parse_commandline()
         "--calculate"
             help = "Flag to indicate if energies must be recalculated or should be read from file. Recalculation is significantly slower"
             action = :store_true
+        "--minFunc"
+            help = "minFunc to make analysis of"
+            arg_type = String
+            default = ""
     end
     return parse_args(s)
 end
@@ -23,13 +27,13 @@ end
 const parsed_args = parse_commandline()
 
 function main()    
-    ls,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"],parsed_args["calculate"])
+    ls,ts_table,minfs_table,accepted_moves_table = readLSimulation(parsed_args["path"],parsed_args["burnout"],parsed_args["calculate"],parsed_args["minFunc"])
     println("saving results")
     ts_mean = Statistics.mean(ts_table,dims=2)
     ts_error = Statistics.std(ts_table,dims=2)
     minfs_mean = Statistics.mean(minfs_table,dims=2)
     minfs_error = Statistics.std(minfs_table,dims=2)
-    open(joinpath(parsed_args["path"],"results.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],"new_results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
         write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
         DelimitedFiles.writedlm(io,table,',')

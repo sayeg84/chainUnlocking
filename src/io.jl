@@ -101,10 +101,10 @@ function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<
             funcvals[i+1] = funcvals[i]
         end
     end
-    #display(toArray(newQ))
-    #println()
-    #display(toArray(lastQ))
-    #println()
+    # display(toArray(newQ))
+    # println()
+    # display(toArray(lastQ))
+    # println()
     return funcvals, newQ
 end
 
@@ -219,6 +219,7 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,bu
     ang_idxs   = DelimitedFiles.readdlm(string(name,"_ang_idxs.csv"),',',Int16)
     ang_vals   = DelimitedFiles.readdlm(string(name,"_ang_vals.csv"),',',BigFloat)
     m = length(Qs)
+    println()
     funcvals = zeros(size(ang_idxs))
     accepted_moves = zeros(m)
     n =  size(ang_idxs,1) 
@@ -228,9 +229,9 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,bu
             println("Reading iteration = $j")
             aux,_ = funcValues(Qs[j],ang_idxs[:,j],ang_vals[:,j],minFunc,ncut)
             funcvals[:,j] = aux
-            funcvals = funcvals[ncut:end,:]
             accepted_moves[j] = length([k for k in ang_idxs[:,j] if k!=0])
         end
+        funcvals = funcvals[ncut:end,:]
     else
         aux = DelimitedFiles.readdlm(string(name,"_fun_vals.csv"),',',BigFloat)
         newncut = Int(ceil(burnout*size(aux,1))) 
@@ -249,16 +250,21 @@ end
 
 
 
-function readLSimulation(name::AbstractString, burnout::Real,calculate::Bool; verbose::Bool=true)
+function readLSimulation(name::AbstractString, burnout::Real,calculate::Bool,minFuncStr::AbstractString=""; verbose::Bool=true)
     ls = DelimitedFiles.readdlm(joinpath(name,"ls.csv"))
     ls = reshape(ls,length(ls))
     ln = length(ls)
     metaParams = readMetaParams(name)
+    simul   = getfield(Main,Symbol(metaParams["algorithm"]))()
+    if isempty(minFuncStr)
+        minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
+    else
+        minFunc = getfield(Main,Symbol(minFuncStr))
+    end
     if verbose
         println("Minimizing function")
-        println(metaParams["minFunc"])
+        println(minFunc)
     end
-    simul   = getfield(Main,Symbol(metaParams["algorithm"]))()
     minFunc = getfield(Main,Symbol(metaParams["minFunc"]))
     indep_simuls = typeof(simul) <: MHAlgorithm ? metaParams["indep_simuls"] : 1
     # saving `_lastQ.csv` files values
