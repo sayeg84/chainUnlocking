@@ -251,13 +251,13 @@ function localRandomSearch(Q::PolygonalChain,
         ang_idx = generateAngleIndex(nq,internal)
         inter_flag , newQ = checkSingleMutation(Q,ang_idx,alpha)
         if !inter_flag
-            dnew = minFunc(newQ)
-            if dnew < fval
+            fvalnew = minFunc(newQ)
+            if fvalnew < fval
                 Q = newQ
-                fval = dnew
+                fval = fvalnew
                 ang_idxs[c] = ang_idx
                 ang_vals[c] = alpha
-                fun_vals[c] = dnew
+                fun_vals[c] = fvalnew
             end
         else
             fun_vals[c] = fval
@@ -346,7 +346,7 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
     while c <= max_iter && fval > tolerance && temp > temp_f
         for i in 1:iter_per_temp
             for j in 1:population
-                fval = minFunc(Q)
+                fval = fun_vals[c,j]
                 #alpha = uniformAngle(alphamin,alphamax)
                 alpha = rand(dist)
                 (internal) && (alpha = alpha/2)
@@ -366,24 +366,25 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
                 debug && println("newQ = $(newQ[j])")
                 if !inter_flag
                     
-                    fval_new = minFunc(newQ)
+                    fvalnew = minFunc(newQ)
                     r = log(rand())
-                    p = (-fval_new + fval)/temp
+                    p = (-fvalnew + fval)/temp
                     if debug
                         println("# no inter")
                         println("fval = $fval")
-                        println("fval_new = $(fval_new)")
+                        println("fvalnew = $(fvalnew)")
                         println("p = $p")
                         println("r = $r")
                     end
                     if r < p
                         debug && println("# accepted")
                         Qs[j] = newQ
-                        fval            = fval_new
+                        fval            = fvalnew
                         ang_idxs[c,j]   = ang_idx
                         ang_vals[c,j]   = alpha
-                        fun_vals[c+1,j] = dnew
-
+                        fun_vals[c+1,j] = fvalnew
+                    else
+                        fun_vals[c+1,j] = fval
                     end
                 else
                     fun_vals[c+1,j] = fval
@@ -438,6 +439,7 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
     while  c <= max_iter && fval > tolerance && temp > temp_f
         for i in 1:iter_per_temp
             for j in 1:population
+                fval = fun_vals[c,j]
                 mut_length = rand(1:mut_k)
                 alphas = [rand(dist) for _ in 1:mut_length]
                 (internal) && (alphas = 0.5*alphas)
@@ -456,13 +458,13 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
                 debug && println("inter  = $(inter_flag)")
                 debug && println("newQ = $(newQ)")
                 if !inter_flag
-                    dnew = minFunc(newQ)
+                    fvalnew = minFunc(newQ)
                     r = log(rand())
-                    p = (-dnew + fval)/temp
+                    p = (-fvalnew + fval)/temp
                     if debug
                         println("# no inter")
                         println("fval = $fval")
-                        println("dnew = $(dnew)")
+                        println("fvalnew = $(fvalnew)")
                         println("temp = $(temp)")
                         println("p = $p")
                         println("r = $r")
@@ -470,13 +472,14 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
                     if r < p
                         debug && println("# accepted")
                         Qs[j] = newQ
-                        fval = dnew
+                        fval = fvalnew
                         li = mut_k*(c-1)+1
                         len = length(alphas)
                         ang_idxs[li:li+len-1,j] = mov_ang_idxs
                         ang_vals[li:li+len-1,j] = alphas
-                        fun_vals[c+1,j] = dnew
-
+                        fun_vals[c+1,j] = fvalnew
+                    else
+                        fun_vals[c+1,j] = fval
                     end
                 else
                     fun_vals[c+1,j] = fval
