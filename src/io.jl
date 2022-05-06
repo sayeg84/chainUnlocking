@@ -7,7 +7,7 @@ const base_vars = ["algorithm","minFunc","chain","indep_simuls",
 "processes","max_iter","tolerance","internal"]
 
 function saveMetaParams(name::AbstractString,simul::MHAlgorithm,parsed_args)
-    open(joinpath(name,"metaParams.csv"),"w+") do io
+    open(joinpath(name,"metaParams.txt"),"w+") do io
         sim_vars = ["max_angle","mut_k","selection","selection_k",
         "temp_init","temp_f","iter_per_temp","temp_program"]
         for var in vcat(base_vars,sim_vars)
@@ -18,7 +18,7 @@ function saveMetaParams(name::AbstractString,simul::MHAlgorithm,parsed_args)
 end
 
 function saveMetaParams(name::AbstractString,simul::GDAlgorithm,parsed_args)
-    open(joinpath(name,"metaParams.csv"),"w+") do io
+    open(joinpath(name,"metaParams.txt"),"w+") do io
         sim_vars = ["time_step","ndens"]
         for var in vcat(base_vars,sim_vars)
             str = string(var,",",parsed_args[var],"\n") 
@@ -196,7 +196,7 @@ end
 
 # `name` must be name of folder
 function readMetaParams(name::AbstractString)
-    metaParams = DelimitedFiles.readdlm(joinpath(name,"metaParams.csv"),',')
+    metaParams = DelimitedFiles.readdlm(joinpath(name,"metaParams.txt"),',')
     metaParams = Dict(zip(metaParams[:,1],metaParams[:,2]))
     return metaParams
 end
@@ -276,7 +276,8 @@ function readLSimulation(name::AbstractString, burnout::Real,calculate::Bool,min
         n1zeros = Int(ceil(log10(ln+1)))
         n1 = lpad(i,n1zeros,'0')
         Qs,funvals,accepted,ts = readSingleSimulation(joinpath(name,n1),simul,minFunc,burnout,calculate)
-        minfs_table[i,:] = Statistics.mean(funvals,dims=1)
+        #minfs_table[i,:] = Statistics.mean(funvals,dims=1)
+        minfs_table[i,:] = minimum(funvals,dims=1)
         accepted_moves_table[i,:] = accepted
         ts_table[i,:] = ts
     end
