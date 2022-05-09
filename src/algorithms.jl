@@ -640,6 +640,7 @@ function genetic(Q::PolygonalChain,
         c += 1
         debug && println("\n\n")
     end
+    # test
     c = c > max_iter ? max_iter : c-1
     return initQs,Qs,fun_vals[1:c+1,:],ang_idxs[1:(c*mut_k),:],ang_vals[1:(c*mut_k),:],parents[1:c,:]
 end
