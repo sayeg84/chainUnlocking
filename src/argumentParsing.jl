@@ -35,7 +35,7 @@ function parse_commandline()
         "--tolerance"
             help = "Tolerance for minimum value of function"
             arg_type = Float64
-            default = 1e-2
+            default = -1000.0
         "--lmin"
             help = "minimum value for l"
             arg_type = Float64

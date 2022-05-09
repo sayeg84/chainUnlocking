@@ -123,6 +123,14 @@ function tangentEnergyFracNormed(Q::AbstractChain)
     return tangentEnergyFrac(Q)/totalLength(Q)
 end
 
+function needleMixture(Q::AbstractChain)
+    return tangentEnergyFrac(Q) + squaredMaxSpan(Q)
+end
+
+function fourKnotMixture(Q::AbstractChain)
+    return tangentEnergyFrac(Q) + fourKnotSpan(Q)
+end
+
 
 function uniformAngle(angmin::Real,angmax::Real)
     return rand()*(angmax-angmin) + angmin
@@ -330,7 +338,7 @@ function singleSimulatedAnnealing(Q::PolygonalChain,
         auxQ = makeLine(Q)
         minFunc = Q -> distToLine(Q,auxQ)
     end
-    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    dist = Distributions.TruncatedNormal(0,pi/20,alphamin,alphamax)
     ang_idxs = zeros(Int16,max_iter,population)
     ang_vals = zeros(ftype(Q),max_iter,population)
     fun_vals = zeros(ftype(Q),max_iter+1,population)
@@ -423,7 +431,7 @@ function multipleSimulatedAnnealing(Q::PolygonalChain,
         auxQ = makeLine(Q)
         minFunc = Q -> distToLine(Q,auxQ)
     end
-    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    dist = Distributions.TruncatedNormal(0,pi/20,alphamin,alphamax)
     ang_idxs = zeros(Int16,mut_k*max_iter,population)
     ang_vals = zeros(ftype(Q),mut_k*max_iter,population)
     fun_vals = zeros(ftype(Q),max_iter+1,population)
@@ -520,7 +528,7 @@ function select(t::TournamentSelection,fvals::Array{<:Real,1})
     vals = zeros(Int64,n) 
     for i in 1:n
         p = randperm(n)
-        vals[i] = argmin(fvals[p[1:t.k]])
+        vals[i] = p[argmin(fvals[p[1:t.k]])]
     end
     return vals
 end
@@ -530,10 +538,12 @@ struct RouletteWheelSelection <: SelectionMethod
     RouletteWheelSelection(k::Integer=3) = new()
 end
 
+#=
 function normalize(fvals::Array{<:Real,1})
     fvals = [Float64(maximum(fvals) - val) for val in fvals]
     return 0
 end
+=#
 
 function select(t::RouletteWheelSelection,fvals::Array{<:Real,1})
     fvals = [Float64(maximum(fvals) - val) for val in fvals]
@@ -572,7 +582,7 @@ function genetic(Q::PolygonalChain,
     ang_vals = zeros(ftype(Q),max_iter*mut_k,population)
     fun_vals = zeros(ftype(Q),max_iter+1,population)
     parents = zeros(Int8,max_iter,population)
-    dist = Distributions.TruncatedNormal(0,pi/8,alphamin,alphamax)
+    dist = Distributions.TruncatedNormal(0,pi/20,alphamin,alphamax)
     nq = length(Q)
     Qs = [perturbe(Q) for _ in 1:population]
     initQs = copy(Qs)
