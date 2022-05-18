@@ -253,7 +253,7 @@ In this case, the intersection only ocurrs if the plane is the same for both seg
 """
 case1SurfaceCoefficients(q1::Point,q2::Point,vq::Point)
 
-Returns coeficients `d,r,c` such that the surface of revolution made by rotating segment q1q2 around the zaxis is described by ``r^2(z) = c z^2 + 2 r z + d``
+Returns coeficients `d,r,c` such that the surface of revolution made by rotating segment q1q2 around the z axis is described by ``rho^2(z) = c z^2 + 2 r z + d``
 
 For more information, check [this math SO post](https://math.stackexchange.com/questions/4082142/intersection-between-rotating-3d-line-and-3d-line)
 """

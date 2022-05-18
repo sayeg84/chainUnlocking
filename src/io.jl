@@ -244,7 +244,6 @@ function readSingleSimulation(name::AbstractString,simul::MHAlgorithm,minFunc,bu
     end
     sources,_ = DelimitedFiles.readdlm(string(name,"_final_Qs.csv"),',',header=true)
     Qs = [PolygonalChain(sources[i,:]) for i in 1:m]
-    #display(toArr
     return  Qs, funcvals, accepted_moves, [n for j in 1:m]
 end
 
@@ -276,8 +275,7 @@ function readLSimulation(name::AbstractString, burnout::Real,calculate::Bool,min
         n1zeros = Int(ceil(log10(ln+1)))
         n1 = lpad(i,n1zeros,'0')
         Qs,funvals,accepted,ts = readSingleSimulation(joinpath(name,n1),simul,minFunc,burnout,calculate)
-        #minfs_table[i,:] = Statistics.mean(funvals,dims=1)
-        minfs_table[i,:] = minimum(funvals,dims=1)
+        minfs_table[i,:] = Statistics.mean(funvals,dims=1)
         accepted_moves_table[i,:] = accepted
         ts_table[i,:] = ts
     end

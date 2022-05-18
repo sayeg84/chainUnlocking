@@ -21,6 +21,9 @@ function parse_commandline()
             help = "minFunc to make analysis of"
             arg_type = String
             default = ""
+        "--minimum"
+            help = "Flag to indicate if analysis must be performed for the mean instead of the minimum value"
+            action = :store_true
     end
     return parse_args(s)
 end
@@ -68,10 +71,17 @@ end
 function main()    
     ls,ts_table,minfs_table,accepted_moves_table = readLSimulationPar(parsed_args["path"],parsed_args["burnout"],parsed_args["minFunc"])
     println("saving results")
-    ts_mean = Statistics.mean(ts_table,dims=2)
-    ts_error = Statistics.std(ts_table,dims=2)
-    minfs_mean = Statistics.mean(minfs_table,dims=2)
-    minfs_error = Statistics.std(minfs_table,dims=2)
+    if parsed_args["minimum"]
+        minfs_mean = minimum(minfs_table,dims=2)
+        minfs_error = zeros(size(minfs_mean))
+        ts_mean = minimum(ts_table,dims=2)
+        ts_error = zeros(size(ts_mean))
+    else
+        minfs_mean = Statistics.mean(minfs_table,dims=2)
+        minfs_error = Statistics.std(minfs_table,dims=2)
+        ts_mean = Statistics.mean(ts_table,dims=2)
+        ts_error = Statistics.std(ts_table,dims=2)
+    end
     open(joinpath(parsed_args["path"],"new_results.csv"),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
         write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
