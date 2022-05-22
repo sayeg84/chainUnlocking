@@ -24,6 +24,10 @@ function parse_commandline()
         "--minimum"
             help = "Flag to indicate if analysis must be performed for the mean instead of the minimum value"
             action = :store_true
+        "--name"
+            help = "String to add to the name"
+            arg_type = String
+            default = ""
     end
     return parse_args(s)
 end
@@ -82,26 +86,29 @@ function main()
         ts_mean = Statistics.mean(ts_table,dims=2)
         ts_error = Statistics.std(ts_table,dims=2)
     end
-    open(joinpath(parsed_args["path"],"new_results.csv"),"w+") do io
+    name = parsed_args["name"]
+    if !isempty(name)
+        name = string(name,"_")
+    end
+    open(joinpath(parsed_args["path"],string(name,"new_results.csv")),"w+") do io
         table = hcat(ls,ts_mean,ts_error,minfs_mean,minfs_error)
         write(io,"l,t_mean,t_std,minf_mean,minf_std\n")
         DelimitedFiles.writedlm(io,table,',')
     end
-    open(joinpath(parsed_args["path"],"ts_table.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],string(name,"ts_table.csv")),"w+") do io
         DelimitedFiles.writedlm(io,ts_table,',')
     end
-    open(joinpath(parsed_args["path"],"minfs_table.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],string(name,"minfs_table.csv")),"w+") do io
         DelimitedFiles.writedlm(io,minfs_table,',')
     end
-    open(joinpath(parsed_args["path"],"accepted_moves_table.csv"),"w+") do io
+    open(joinpath(parsed_args["path"],string(name,"accepted_moves_table.csv")),"w+") do io
         DelimitedFiles.writedlm(io,accepted_moves_table,',')
     end
-    
     println("Making Plots")
     scatter(ls,ts_mean,yerror=ts_error./2,label=false,title="L analysis",ylabel="steps",xlabel="L")
-    savefig(joinpath(parsed_args["path"],"l-t.pdf"))
+    savefig(joinpath(parsed_args["path"],string(name,"l-t.pdf")))
     scatter(ls,minfs_mean,yerror=minfs_error./2,label=false,title="L analysis",ylabel="minf",xlabel="L")
-    savefig(joinpath(parsed_args["path"],"l-minf.pdf"))
+    savefig(joinpath(parsed_args["path"],string(name,"l-minf.pdf")))
     println("Done")
 end
 
