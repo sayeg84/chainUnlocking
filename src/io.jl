@@ -93,6 +93,8 @@ function funcValues(Q::AbstractChain,ang_idxs::Array{<:Real,1},ang_vals::Array{<
             rotate!(newQ,ang_idxs[i],ang_vals[i])
         end
     end
+    # this is needed to avoid 0 minFunc value when all ang_idxs are 0 after ncut
+    funcvals[ncut] = minFunc(newQ)
     for i in ncut:(length(ang_vals)-1)
         if ang_idxs[i]!= 0
             rotate!(newQ,ang_idxs[i],ang_vals[i])
